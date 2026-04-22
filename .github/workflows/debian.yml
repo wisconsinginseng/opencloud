@@ -10,7 +10,7 @@ jobs:
 
       - name: Build in Debian Bookworm (ARMv7)
         
-        uses: uraimo/run-on-arch-action@v2.9.0
+        uses: uraimo/run-on-arch-action@v2
         with:
           arch: armv7
           distro: bookworm        # ← ここで Debian Bookworm を指名！
