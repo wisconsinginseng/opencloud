@@ -12,23 +12,25 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.21' # Go職人を呼び出す
-  
+
       - name: Install ARM Cross-Compiler
         run: |
           # 1. ARMアーキテクチャを追加
           sudo dpkg --add-architecture armhf
-          
-          # 2. リポジトリの設定を「Intel用」と「ARM用」で分ける
-          #    Intel用はデフォルトのまま、ARM用(armhf)は ports.ubuntu.com を見るように書き換えます
-          sudo sed -i "s/^deb /deb [arch=amd64] /g" /etc/apt/sources.list
-          echo "deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -sc) main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          echo "deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -sc)-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          echo "deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -sc)-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
 
-          # 3. 新しい倉庫の情報を取り込む
+          # 2. 既存の全ての deb 行に [arch=amd64] を付与して、ARM用を探しに行かないようにする
+          #    (noble以降の形式にも対応できるよう、より確実に書き換えます)
+          sudo find /etc/apt/sources.list* -type f -exec sed -i 's/^deb /deb [arch=amd64] /g' {} +
+
+          # 3. ARM専用倉庫を追加
+          echo "deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -sc) main restricted universe multiverse" | sudo tee /etc/apt/sources.list.d/armhf.list
+          echo "deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -sc)-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/armhf.list
+          echo "deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -sc)-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/armhf.list
+
+          # 4. アップデート
           sudo apt-get update
-          
-          # 4. これでようやく libcrypt-dev:armhf が見つかります！
+
+          # 5. インストール
           sudo apt-get install -y gcc-arm-linux-gnueabihf libcrypt-dev:armhf
 
       - name: Build All Services
