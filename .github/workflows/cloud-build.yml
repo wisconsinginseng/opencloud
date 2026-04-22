@@ -15,13 +15,20 @@ jobs:
   
       - name: Install ARM Cross-Compiler
         run: |
-          # 1. 工場に「ARM（armhf）も扱うぞ」と宣言する
+          # 1. ARMアーキテクチャを追加
           sudo dpkg --add-architecture armhf
           
-          # 2. 棚卸し（アップデート）をしてARM用の在庫を確認する
+          # 2. リポジトリの設定を「Intel用」と「ARM用」で分ける
+          #    Intel用はデフォルトのまま、ARM用(armhf)は ports.ubuntu.com を見るように書き換えます
+          sudo sed -i "s/^deb /deb [arch=amd64] /g" /etc/apt/sources.list
+          echo "deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -sc) main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -sc)-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -sc)-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+
+          # 3. 新しい倉庫の情報を取り込む
           sudo apt-get update
           
-          # 3. コンパイラと、今度こそARM用のlibcryptをインストール
+          # 4. これでようやく libcrypt-dev:armhf が見つかります！
           sudo apt-get install -y gcc-arm-linux-gnueabihf libcrypt-dev:armhf
 
       - name: Build All Services
