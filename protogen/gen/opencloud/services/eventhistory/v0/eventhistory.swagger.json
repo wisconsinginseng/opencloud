@@ -52,40 +52,11 @@
         "details": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/protobufAny"
           }
         }
       }
-    },
-    "v0Event": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
-          "description": "REQUIRED."
-        },
-        "id": {
-          "type": "string",
-          "description": "REQUIRED."
-        },
-        "event": {
-          "type": "string",
-          "format": "byte",
-          "title": "REQUIRED"
-        }
-      }
-    },
-    "v0GetEventsResponse": {
-      "type": "object",
-      "properties": {
-        "events": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v0Event"
-          }
-        }
-      },
-      "title": "The service response"
     }
   },
   "externalDocs": {

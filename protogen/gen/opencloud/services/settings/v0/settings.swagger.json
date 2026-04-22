@@ -618,24 +618,26 @@
         "details": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/protobufAny"
           }
         }
       }
     },
-    "settingsv0ListValue": {
+    "settingsV0ListValue": {
       "type": "object",
       "properties": {
         "values": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/v0ListOptionValue"
           },
           "title": "@gotags: yaml:\"values\""
         }
       }
     },
-    "settingsv0Value": {
+    "settingsV0Value": {
       "type": "object",
       "properties": {
         "id": {
@@ -672,7 +674,7 @@
           "title": "@gotags: yaml:\"string_value\""
         },
         "listValue": {
-          "$ref": "#/definitions/settingsv0ListValue",
+          "$ref": "#/definitions/settingsV0ListValue",
           "title": "@gotags: yaml:\"list_value\""
         },
         "collectionValue": {
@@ -759,6 +761,7 @@
         "settings": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/v0Setting"
           },
           "title": "@gotags: yaml:\"settings\""
@@ -807,6 +810,7 @@
         "values": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/v0CollectionOption"
           },
           "title": "@gotags: yaml:\"values\""
@@ -935,6 +939,7 @@
         "bundles": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/v0Bundle"
           }
         }
@@ -989,6 +994,7 @@
         "permissions": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/v0Permission"
           }
         }
@@ -1019,6 +1025,7 @@
         "filters": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/v0UserRoleAssignmentFilter"
           }
         }
@@ -1038,6 +1045,7 @@
         "assignments": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/v0UserRoleAssignment"
           }
         }
@@ -1060,6 +1068,7 @@
         "values": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/v0ValueWithIdentifier"
           }
         }
@@ -1071,6 +1080,7 @@
         "options": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/v0MultiChoiceCollectionOption"
           },
           "title": "@gotags: yaml:\"options\""
@@ -1121,6 +1131,7 @@
         "options": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/v0ListOption"
           },
           "title": "@gotags: yaml:\"options\""
@@ -1219,7 +1230,7 @@
       "type": "object",
       "properties": {
         "value": {
-          "$ref": "#/definitions/settingsv0Value"
+          "$ref": "#/definitions/settingsV0Value"
         }
       }
     },
@@ -1290,6 +1301,7 @@
         "options": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/v0ListOption"
           },
           "title": "@gotags: yaml:\"options\""
@@ -1369,7 +1381,7 @@
           "$ref": "#/definitions/v0Identifier"
         },
         "value": {
-          "$ref": "#/definitions/settingsv0Value"
+          "$ref": "#/definitions/settingsV0Value"
         }
       }
     }
