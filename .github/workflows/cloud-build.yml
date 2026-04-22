@@ -12,12 +12,13 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.21' # Go職人を呼び出す
-
+  
       - name: Install ARM Cross-Compiler
         run: |
           sudo apt-get update
-          # 「hf」付きのクロスコンパイラをインストールします
-          sudo apt-get install -y gcc-arm-linux-gnueabihf
+          # コンパイラだけでなく、ARM用の開発ライブラリ（libcrypt-dev）も仕入れます
+          sudo apt-get install -y gcc-arm-linux-gnueabihf libcrypt-dev:armhf
+
 
       - name: Build All Services
         run: |
