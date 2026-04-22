@@ -16,19 +16,25 @@ jobs:
           distro: bookworm        # ← ここで Debian Bookworm を指名！
           githubToken: ${{ github.token }}
 
-          # 仮想部屋の中での作業指示
-          run: |
-            # 1. 必要な道具を揃える（Debian公式なので404になりません！）
+        run: |
+            # 1. 必要なOSライブラリだけ入れる
             apt-get update
-            apt-get install -y golang-go libcrypt-dev gcc git
+            apt-get install -y libcrypt-dev gcc git wget curl
 
-            # 2. ビルド実行
+            # 2. 最新のGoを「出前」で取る (ARMv7用)
+            wget https://go.dev/dl/go1.23.0.linux-armv7.tar.gz
+            tar -C /usr/local -xzf go1.23.0.linux-armv7.tar.gz
+            export PATH=$PATH:/usr/local/go/bin
+
+            # 3. バージョン確認（これで1.23と出るはず！）
+            go version
+
+            # 4. ビルド実行
             cd opencloud
-            # ここで依存関係を今のGo 1.21に合うように掃除・整理させる！
+            # さっき削った .0 を戻さなくても、1.23なら 1.21形式も 1.25形式も読めます
             go mod tidy
             go mod vendor
-            
-            # 仮想環境内がすでに ARMv7 なので、複雑なクロスコンパイル設定は不要！
+
             CGO_ENABLED=1 \
             go build -v -tags 'netgo' -ldflags '-s -w' -o bin/opencloud ./cmd/opencloud
 
