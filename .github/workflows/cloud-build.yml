@@ -15,14 +15,13 @@ jobs:
         
       - name: Build All Services
         run: |
-          # コマンドの頭に直接環境変数を並べることで、確実にビルドに反映させます
           cd opencloud
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 \
-          make build \
-            TAGS="netgo" \
-            LDFLAGS="-s -w"
+          # ここで「材料の再発注」をかけます！
+          go mod vendor
           
-
+          # その後、正しい材料を使ってビルド
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 \
+          go build -v -tags 'netgo' -ldflags '-s -w' -o bin/opencloud ./cmd/opencloud
 
 
       - name: Archive Production
