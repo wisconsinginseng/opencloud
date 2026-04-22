@@ -12,20 +12,18 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.21' # Go職人を呼び出す
-
+        
       - name: Build All Services
         run: |
-          # 30年選手のこだわりを詰め込んだビルドコマンド
-          export CGO_ENABLED=0
-          export GOOS=linux
-          export GOARCH=arm
-          export GOARM=7
-          
-          # 全体のビルドを実行（opencloudディレクトリ内のMakefileを利用）
-          # TAGSとLDFLAGSで「軽量・単体動作」を実現します
-          make -C opencloud build \
+          # コマンドの頭に直接環境変数を並べることで、確実にビルドに反映させます
+          cd opencloud
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 \
+          make build \
             TAGS="netgo" \
             LDFLAGS="-s -w"
+          
+
+
 
       - name: Archive Production
         uses: actions/upload-artifact@v4
