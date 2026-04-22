@@ -12,16 +12,26 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.21' # Go職人を呼び出す
-        
+
+      - name: Install ARM Cross-Compiler
+        run: |
+          sudo apt-get update
+          # 「hf」付きのクロスコンパイラをインストールします
+          sudo apt-get install -y gcc-arm-linux-gnueabihf
+
       - name: Build All Services
         run: |
           cd opencloud
-          # ここで「材料の再発注」をかけます！
           go mod vendor
-          
-          # その後、正しい材料を使ってビルド
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 \
+
+          # CCも「hf」付きを指名！
+          CGO_ENABLED=1 \
+          GOOS=linux \
+          GOARCH=arm \
+          GOARM=7 \
+          CC=arm-linux-gnueabihf-gcc \
           go build -v -tags 'netgo' -ldflags '-s -w' -o bin/opencloud ./cmd/opencloud
+
 
 
       - name: Archive Production
