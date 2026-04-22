@@ -24,6 +24,8 @@ jobs:
 
             # 2. ビルド実行
             cd opencloud
+            # ここで依存関係を今のGo 1.21に合うように掃除・整理させる！
+            go mod tidy
             go mod vendor
             
             # 仮想環境内がすでに ARMv7 なので、複雑なクロスコンパイル設定は不要！
