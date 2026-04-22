@@ -15,10 +15,14 @@ jobs:
   
       - name: Install ARM Cross-Compiler
         run: |
+          # 1. 工場に「ARM（armhf）も扱うぞ」と宣言する
+          sudo dpkg --add-architecture armhf
+          
+          # 2. 棚卸し（アップデート）をしてARM用の在庫を確認する
           sudo apt-get update
-          # コンパイラだけでなく、ARM用の開発ライブラリ（libcrypt-dev）も仕入れます
+          
+          # 3. コンパイラと、今度こそARM用のlibcryptをインストール
           sudo apt-get install -y gcc-arm-linux-gnueabihf libcrypt-dev:armhf
-
 
       - name: Build All Services
         run: |
