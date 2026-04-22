@@ -16,7 +16,7 @@ jobs:
           distro: bookworm        # ← ここで Debian Bookworm を指名！
           githubToken: ${{ github.token }}
 
-        run: |
+      run: |
             # 1. 必要なOSライブラリだけ入れる
             apt-get update
             apt-get install -y libcrypt-dev gcc git wget curl
