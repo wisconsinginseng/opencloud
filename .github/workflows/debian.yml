@@ -16,17 +16,20 @@ jobs:
           githubToken: ${{ github.token }}
           # 【重要】runはwithの中に一段（スペース2個分）下げて書きます
           run: |
+
             # --- 第1段階: 環境整備とGoのインストール ---
             echo "--- Phase 1: Installing Environment ---"
             rm -f /etc/apt/sources.list.d/*.list
             apt-get update
             apt-get install -y libcrypt-dev gcc git wget curl
+
+            # 公式のインストールスクリプト(go-install)を使って自動導入
+            curl -L https://git.io/vQhWE | bash -s -- --version 1.23.0
             
-            wget https://storage.googleapis.com/golang/go1.23.0.linux-armv7.tar.gz
-            tar -C /usr/local -xzf go1.23.0.linux-armv7.tar.gz
+            # パスを通す（スクリプトのデフォルト位置）
             export PATH=$PATH:/usr/local/go/bin
             go version
-
+            
             # --- 第2段階: Goモジュールの整理 (go mod) ---
             echo "--- Phase 2: Go Mod Tidy ---"
             go mod tidy
