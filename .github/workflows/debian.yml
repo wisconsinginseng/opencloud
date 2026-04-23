@@ -1,0 +1,42 @@
+name: OpenCloud Debian Build (LS220D)
+on: [push]
+
+jobs:
+  armv7-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Build in Debian Bookworm (ARMv7)
+        uses: uraimo/run-on-arch-action@v2
+        with:
+          arch: armv7
+          distro: bookworm
+          githubToken: ${{ github.token }}
+        run: |
+          # 1. 必要なOSライブラリだけ入れる
+          apt-get update
+          apt-get install -y libcrypt-dev gcc git wget curl
+
+          # 2. 最新のGoを「出前」で取る (ARMv7用)
+          wget https://go.dev/dl/go1.23.0.linux-armv7.tar.gz
+          tar -C /usr/local -xzf go1.23.0.linux-armv7.tar.gz
+          export PATH=$PATH:/usr/local/go/bin
+
+          # 3. バージョン確認
+          go version
+
+          # 4. ビルド実行
+          # ルート直下に go.mod があるので、cd opencloud は不要（またはパスに注意）
+          go mod tidy
+          go mod vendor
+
+          CGO_ENABLED=1 \
+          go build -v -tags 'netgo' -ldflags '-s -w' -o bin/opencloud ./cmd/opencloud
+
+      - name: Archive Production
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencloud-ls220d-debian
+          path: bin/
