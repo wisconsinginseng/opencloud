@@ -8,33 +8,38 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v4
 
-      - name: Build in Debian Bookworm (ARMv7)
+      - name: Full Build Process
         uses: uraimo/run-on-arch-action@v2
         with:
           arch: armv7
           distro: bookworm
           githubToken: ${{ github.token }}
-        run: |
-          # 1. 混じり込んだUbuntuの古い設定（404の原因）を掃除する
-          rm -f /etc/apt/sources.list.d/*.list
+          # 【重要】runはwithの中に一段（スペース2個分）下げて書きます
+          run: |
+            # --- 第1段階: 環境整備とGoのインストール ---
+            echo "--- Phase 1: Installing Environment ---"
+            rm -f /etc/apt/sources.list.d/*.list
+            apt-get update
+            apt-get install -y libcrypt-dev gcc git wget curl
+            
+            wget https://go.dev/dl/go1.23.0.linux-armv7.tar.gz
+            tar -C /usr/local -xzf go1.23.0.linux-armv7.tar.gz
+            export PATH=$PATH:/usr/local/go/bin
+            go version
 
-          # 2. Debianの純正レポジトリから必要な工具を揃える
-          apt-get update
-          apt-get install -y libcrypt-dev gcc git wget curl
+            # --- 第2段階: Goモジュールの整理 (go mod) ---
+            echo "--- Phase 2: Go Mod Tidy ---"
+            go mod tidy
 
-          # 3. Go 1.23を「出前」で取る（ARMv7用）
-          wget https://go.dev/dl/go1.23.0.linux-armv7.tar.gz
-          tar -C /usr/local -xzf go1.23.0.linux-armv7.tar.gz
-          export PATH=$PATH:/usr/local/go/bin
- 
-          # 4. バージョン確認
-          go version
+            # --- 第3段階: 依存ライブラリのダウンロード (vendor) ---
+            echo "--- Phase 3: Go Mod Vendor ---"
+            go mod vendor
 
-          # 5. ビルド実行
-          go mod tidy
-          go mod vendor
-          CGO_ENABLED=1 \
-          go build -v -tags 'netgo' -ldflags '-s -w' -o bin/opencloud ./cmd/opencloud
+            # --- 第4段階: CGOを有効にしてビルド ---
+            echo "--- Phase 4: Final Build ---"
+            mkdir -p bin
+            CGO_ENABLED=1 \
+            go build -v -tags 'netgo' -ldflags '-s -w' -o bin/opencloud ./cmd/opencloud
 
       - name: Archive Production
         uses: actions/upload-artifact@v4
