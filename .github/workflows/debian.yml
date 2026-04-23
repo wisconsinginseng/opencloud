@@ -15,23 +15,24 @@ jobs:
           distro: bookworm
           githubToken: ${{ github.token }}
         run: |
-          # 1. 必要なOSライブラリだけ入れる
+          # 1. 混じり込んだUbuntuの古い設定（404の原因）を掃除する
+          rm -f /etc/apt/sources.list.d/*.list
+
+          # 2. Debianの純正レポジトリから必要な工具を揃える
           apt-get update
           apt-get install -y libcrypt-dev gcc git wget curl
 
-          # 2. 最新のGoを「出前」で取る (ARMv7用)
+          # 3. Go 1.23を「出前」で取る（ARMv7用）
           wget https://go.dev/dl/go1.23.0.linux-armv7.tar.gz
           tar -C /usr/local -xzf go1.23.0.linux-armv7.tar.gz
           export PATH=$PATH:/usr/local/go/bin
-
-          # 3. バージョン確認
+ 
+          # 4. バージョン確認
           go version
 
-          # 4. ビルド実行
-          # ルート直下に go.mod があるので、cd opencloud は不要（またはパスに注意）
+          # 5. ビルド実行
           go mod tidy
           go mod vendor
-
           CGO_ENABLED=1 \
           go build -v -tags 'netgo' -ldflags '-s -w' -o bin/opencloud ./cmd/opencloud
 
