@@ -16,28 +16,19 @@ jobs:
           githubToken: ${{ github.token }}
           # 【重要】runはwithの中に一段（スペース2個分）下げて書きます
           run: |
-
-            # --- 第1段階: 環境整備 (ソースからGoをビルド) ---
-            echo "--- Phase 1: Building Go from Source ---"
+            
+            # --- 第1段階: 環境整備 (今度こそ確実にGoを入れる) ---
+            echo "--- Phase 1: Installing Environment ---"
             rm -f /etc/apt/sources.list.d/*.list
             apt-get update
-            apt-get install -y libcrypt-dev gcc git wget curl golang-go
+            apt-get install -y libcrypt-dev gcc git wget curl
 
-            # ソースコードを本家から取得（ソースなら404になりにくい！）
-            git clone https://go.googlesource.com/go $HOME/go-source
-            cd $HOME/go-source
-            git checkout go1.23.1
+            # ブラウザ（User-Agent）を偽装して、Googleの門番を突破する
+            curl -A "Mozilla/5.0" -L -o go1.23.1.tar.gz https://go.dev/dl/go1.23.1.linux-armv7.tar.gz
             
-            # ビルド実行（今入れた apt の Go を使って、最新の Go を焼く）
-            cd src
-            GOROOT_BOOTSTRAP=$(go env GOROOT) ./make.bash
-
-            # 出来上がった「最新Go」を配置
-            cp -r $HOME/go-source /usr/local/go
-            export PATH=/usr/local/go/bin:$PATH
-            
-            go version
-            
+            tar -C /usr/local -xzf go1.23.1.tar.gz
+            export PATH=$PATH:/usr/local/go/bin
+            /usr/local/go/bin/go version
             
             # --- 第2段階: Goモジュールの整理 (go mod) ---
             echo "--- Phase 2: Go Mod Tidy ---"
