@@ -1,4 +1,4 @@
-name: Build OpenCloud for ARMv7 (Custom Go)  
+name: Build OpenCloud for LS220D (ARMv7 Native Cross)
 on:
   push:
     branches: [ main ]
@@ -7,68 +7,68 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        arch: [armv7]
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23' # 安定した標準の64bit Goを使用
 
-      - name: Setup Debian Environment
+      - name: Build Instant 32bit Sysroot (The Kondo Strategy)
         run: |
+          # 1. 隔離された部品倉庫を作成
+          mkdir -p $GITHUB_WORKSPACE/armhf-sysroot
+          cd $GITHUB_WORKSPACE/armhf-sysroot
+
+          # 2. Ubuntuに「armhf（ARMv7用）」の存在を教える（DLのためだけ）
+          sudo dpkg --add-architecture armhf
           sudo apt-get update
-          sudo apt-get install -y wget tar gcc libc6-dev
 
-      - name: Bridge the Gap (ARM Loader)
-        run: |
-          # 1. ARM 32bit用の標準ライブラリ（ローダー含む）を導入
-          sudo apt-get install -y libc6-armhf-cross
-          
-          # 2. QEMUに「ここがARMの部品置き場だ」と教える環境変数を設定
-          # これにより、QEMU経由で mockery 等が動くようになります
-          echo "QEMU_LD_PREFIX=/usr/arm-linux-gnueabihf" >> $GITHUB_ENV
-          
-      - name: Install Custom Go 1.25.0
-        run: |
-          # 1. ダウンロード
-          wget https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
-          
-          # 2. /usr/local/go に展開
-          sudo mkdir -p /usr/local/go
-          sudo tar -C /usr/local/go -xzf go1.25.0-linux-armv7-custom.tar.gz
-          
-          # 3. 実行権限付与とシンボリックリンク
-          sudo chmod +x /usr/local/go/bin/linux_arm/go
-          sudo ln -sf /usr/local/go/bin/linux_arm/go /usr/local/bin/go
-          
-          # 4. パス設定
-          echo "/usr/local/bin" >> $GITHUB_PATH
-          /usr/local/bin/go version
+          # 3. libcryptを含む「有効成分」をファイルとしてDL
+          # システムにはインストールせず、ただのファイルとして取得
+          apt-get download \
+            libc6:armhf \
+            libc6-dev:armhf \
+            libcrypt1:armhf \
+            libcrypt-dev:armhf \
+            linux-libc-dev:armhf
 
-      - name: Set Go Paths
+          # 4. dpkgを使って倉庫の中に中身だけを展開
+          # これにより、64bitシステムとの衝突を完全に回避！
+          for f in *.deb; do dpkg -x "$f" .; done
+
+          # 5. コンパイラが見つけやすいようにパスを調整（おまじない）
+          ln -s usr/lib/arm-linux-gnueabihf lib/arm-linux-gnueabihf
+
+      - name: Install Cross Compiler Tool
         run: |
-          echo "GOROOT=/usr/local/go" >> $GITHUB_ENV
-          echo "GOPATH=$HOME/go" >> $GITHUB_ENV
-          
-          # パスを通す順番: 最後に登録したものが最優先されます
-          echo "/usr/bin" >> $GITHUB_PATH
-          echo "/usr/local/go/bin/linux_arm" >> $GITHUB_PATH
-          echo "$HOME/go/bin" >> $GITHUB_PATH
-      
+          # 32bit部品を接着するための専用工具（GCC）を導入
+          sudo apt-get install -y gcc-arm-linux-gnueabihf
+
       - name: Build OpenCloud
         run: |
+          # --- 監督の理論を実現する魔法の設定 ---
+          export GOOS=linux
+          export GOARCH=arm
+          export GOARM=7
           export CGO_ENABLED=1
+          
+          # 「俺が作った倉庫の部品を最優先で使え！」という指示
+          SYSROOT=$GITHUB_WORKSPACE/armhf-sysroot
+          export CGO_CFLAGS="-I$SYSROOT/usr/include"
+          export CGO_LDFLAGS="-L$SYSROOT/lib/arm-linux-gnueabihf -L$SYSROOT/usr/lib/arm-linux-gnueabihf"
+          export CC=arm-linux-gnueabihf-gcc
+          
+          # いざ、ビルド！
           make generate
           make -C build
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: opencloud-armv7-binary
+          name: opencloud-ls220d-armv7
           path: |
             build/
-            bin/
+            bin/  
