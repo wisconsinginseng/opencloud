@@ -1,5 +1,4 @@
-name: Build OpenCloud for ARMv7 (Custom Go)
-
+name: Build OpenCloud for ARMv7 (Custom Go)  
 on:
   push:
     branches: [ main ]
@@ -46,6 +45,13 @@ jobs:
           
           # 6. 最終確認（これで 1.25.0 が出れば、全工程終了です！）
           /usr/local/bin/go version
+
+      - name: Set Go Paths
+        run: |
+          echo "GOROOT=/usr/local/go" >> $GITHUB_ENV
+          echo "GOPATH=$HOME/go" >> $GITHUB_ENV
+          echo "/usr/local/go/bin/linux_arm" >> $GITHUB_PATH
+          echo "$HOME/go/bin" >> $GITHUB_PATH
 
       - name: Build OpenCloud
         run: |
