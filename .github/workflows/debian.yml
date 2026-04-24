@@ -24,8 +24,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y wget tar gcc libc6-dev
 
-
-      - name: Install Custom Go 1.25.0
+      - name: Bridge the Gap (ARM Loader)
+        run: |
+          # 1. ARM 32bit用の標準ライブラリ（ローダー含む）を導入
+          sudo apt-get install -y libc6-armhf-cross
+          
+          # 2. QEMUに「ここがARMの部品置き場だ」と教える環境変数を設定
+          # これにより、QEMU経由で mockery が動くようになります
+          echo "QEMU_LD_PREFIX=/usr/arm-linux-gnueabihf" >> $GITHUB_ENV
+          
+      
+          - name: Install Custom Go 1.25.0
         run: |
           # 1. ダウンロード
           wget https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
@@ -58,7 +67,7 @@ jobs:
           echo "/usr/bin" >> $GITHUB_PATH
           echo "/usr/local/go/bin/linux_arm" >> $GITHUB_PATH
           echo "$HOME/go/bin" >> $GITHUB_PATH
-          
+      
       - name: Build OpenCloud
         run: |
           export CGO_ENABLED=1
