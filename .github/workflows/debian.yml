@@ -27,22 +27,24 @@ jobs:
 
       - name: Install Custom Go 1.25.0
         run: |
-          # 1. 特製Goをダウンロード
+          # 1. ダウンロードと展開
           wget https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
-          
-          # 2. 既存のGoを一度消去して、確実に上書きする
           sudo rm -rf /usr/local/go
           sudo tar -C /usr/local -xzf go1.25.0-linux-armv7-custom.tar.gz
           
-          # 3. 新しいGoの場所を「最優先」でパスに追加する
+          # 2. 実行権限を念押しで付与（LS220Dでの教訓を活かします！）
+          sudo chmod +x /usr/local/go/bin/go
+          
+          # 3. /usr/local/bin (ここが一番通りやすい道) にリンクを貼る
+          sudo ln -sf /usr/local/go/bin/go /usr/local/bin/go
+          sudo ln -sf /usr/local/go/bin/gofmt /usr/local/bin/gofmt
+          
+          # 4. パスを最優先に設定
           echo "/usr/local/go/bin" >> $GITHUB_PATH
           
-          # 4. (念押し) シンボリックリンクを貼り直す
-          sudo ln -sf /usr/local/go/bin/go /usr/bin/go\
-
       - name: Verify Go Version
         run: |
-          go version  # ここで "go1.23.1 linux/arm" と出れば勝利です！
+          go version  # ここで "go1.25.1 linux/arm" と出れば勝利です！
 
       - name: Build OpenCloud
         run: |
