@@ -7,7 +7,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # ARMv7（32bit）環境をエミュレートして実行
     strategy:
       matrix:
         arch: [armv7]
@@ -30,40 +29,32 @@ jobs:
           sudo apt-get install -y libc6-armhf-cross
           
           # 2. QEMUに「ここがARMの部品置き場だ」と教える環境変数を設定
-          # これにより、QEMU経由で mockery が動くようになります
+          # これにより、QEMU経由で mockery 等が動くようになります
           echo "QEMU_LD_PREFIX=/usr/arm-linux-gnueabihf" >> $GITHUB_ENV
           
-      
-          - name: Install Custom Go 1.25.0
+      - name: Install Custom Go 1.25.0
         run: |
           # 1. ダウンロード
           wget https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
           
-          # 2. 一旦 /usr/local/go にすべて展開
+          # 2. /usr/local/go に展開
           sudo mkdir -p /usr/local/go
           sudo tar -C /usr/local/go -xzf go1.25.0-linux-armv7-custom.tar.gz
           
-          # 3. linux_arm の中にある「本物」に、外からでもアクセスできるように権限付与
+          # 3. 実行権限付与とシンボリックリンク
           sudo chmod +x /usr/local/go/bin/linux_arm/go
-          
-          # 4. 「本物」を /usr/local/bin/go として表舞台に立たせる（シンボリックリンク）
           sudo ln -sf /usr/local/go/bin/linux_arm/go /usr/local/bin/go
           
-          # 5. パスを最優先に設定
+          # 4. パス設定
           echo "/usr/local/bin" >> $GITHUB_PATH
-          
-          # 6. 最終確認（これで 1.25.0 が出れば、全工程終了です！）
           /usr/local/bin/go version
 
       - name: Set Go Paths
         run: |
-          # Go本体のパス（ここをあえて標準のパスも含める）
           echo "GOROOT=/usr/local/go" >> $GITHUB_ENV
           echo "GOPATH=$HOME/go" >> $GITHUB_ENV
           
-          # パスを通す順番を変えます
-          # 1. まず標準のGo（/usr/bin）を優先してツールをビルドさせる
-          # 2. その後に特製Goのパスを置く
+          # パスを通す順番: 最後に登録したものが最優先されます
           echo "/usr/bin" >> $GITHUB_PATH
           echo "/usr/local/go/bin/linux_arm" >> $GITHUB_PATH
           echo "$HOME/go/bin" >> $GITHUB_PATH
@@ -71,9 +62,6 @@ jobs:
       - name: Build OpenCloud
         run: |
           export CGO_ENABLED=1
-          # 1. 念のため Makefile があるか確認
-          ls -F
-          # 2. 自動生成とビルドを実行
           make generate
           make -C build
 
@@ -81,9 +69,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: opencloud-armv7-binary
-          # ファイル名ではなく、成果物が溜まっている「ディレクトリ」を指定するのがコツです
-          # make -C build の場合、通常は build/bin や bin/ に書き出されます
           path: |
             build/
-            bin/    
-          
+            bin/
