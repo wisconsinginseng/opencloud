@@ -1,51 +1,55 @@
-name: OpenCloud Debian Build (LS220D)
-on: [push]
+name: Build OpenCloud for ARMv7 (Custom Go)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  armv7-build:
+  build:
     runs-on: ubuntu-latest
+    # ARMv7（32bit）環境をエミュレートして実行
+    strategy:
+      matrix:
+        arch: [armv7]
+
     steps:
-      - name: Checkout Source
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Full Build Process
-        uses: uraimo/run-on-arch-action@v2
-        with:
-          arch: armv7
-          distro: bookworm
-          githubToken: ${{ github.token }}
-          # 【重要】runはwithの中に一段（スペース2個分）下げて書きます
-          run: |
-            
-            # --- 第1段階: 環境整備 (今度こそ確実にGoを入れる) ---
-            echo "--- Phase 1: Installing Environment ---"
-            rm -f /etc/apt/sources.list.d/*.list
-            apt-get update
-            apt-get install -y libcrypt-dev gcc git wget curl
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-            # ブラウザ（User-Agent）を偽装して、Googleの門番を突破する
-            curl -A "Mozilla/5.0" -L -o go1.23.1.tar.gz https://go.dev/dl/go1.23.1.linux-armv7.tar.gz
-            
-            tar -C /usr/local -xzf go1.23.1.tar.gz
-            export PATH=$PATH:/usr/local/go/bin
-            /usr/local/go/bin/go version
-            
-            # --- 第2段階: Goモジュールの整理 (go mod) ---
-            echo "--- Phase 2: Go Mod Tidy ---"
-            go mod tidy
+      - name: Setup Debian Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget tar gcc libc6-dev
 
-            # --- 第3段階: 依存ライブラリのダウンロード (vendor) ---
-            echo "--- Phase 3: Go Mod Vendor ---"
-            go mod vendor
+      - name: Install Custom Go 1.23.1
+        run: |
+          # 1. 昨日GitHub Releaseに上げた「自家製Go」をダウンロード
+          # ※ URLは実際にアップロードしたファイルのリンクに書き換えてください
+          wget https://github.com/wisconsinginseng/opencloud/releases/download/v1.23.1-go/go1.23.1-linux-armv7-custom.tar.gz 
+          
+          # 2. /usr/local に展開（既存のGoがあれば上書き）
+          sudo tar -C /usr/local -xzf go1.23.1-linux-armv7-custom.tar.gz
+          
+          # 3. パスを通す
+          echo "/usr/local/go/bin" >> $GITHUB_PATH
 
-            # --- 第4段階: CGOを有効にしてビルド ---
-            echo "--- Phase 4: Final Build ---"
-            mkdir -p bin
-            CGO_ENABLED=1 \
-            go build -v -tags 'netgo' -ldflags '-s -w' -o bin/opencloud ./cmd/opencloud
+      - name: Verify Go Version
+        run: |
+          go version  # ここで "go1.23.1 linux/arm" と出れば勝利です！
 
-      - name: Archive Production
+      - name: Build OpenCloud
+        run: |
+          # ここにOpenCloudのビルドコマンドを記述
+          # 例: go build -o opencloud-armv7 ./main.go
+          export CGO_ENABLED=1
+          go build -v -o opencloud-bin ./...
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: opencloud-ls220d-debian
-          path: bin/
+          name: opencloud-armv7-binary
+          path: opencloud-bin
