@@ -27,15 +27,18 @@ jobs:
 
       - name: Install Custom Go 1.25.0
         run: |
-          # 1. 昨日GitHub Releaseに上げた「自家製Go」をダウンロード
-          # ※ URLは実際にアップロードしたファイルのリンクに書き換えてください
-          wget https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz 
+          # 1. 特製Goをダウンロード
+          wget https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
           
-          # 2. /usr/local に展開（既存のGoがあれば上書き）
+          # 2. 既存のGoを一度消去して、確実に上書きする
+          sudo rm -rf /usr/local/go
           sudo tar -C /usr/local -xzf go1.25.0-linux-armv7-custom.tar.gz
           
-          # 3. パスを通す
+          # 3. 新しいGoの場所を「最優先」でパスに追加する
           echo "/usr/local/go/bin" >> $GITHUB_PATH
+          
+          # 4. (念押し) シンボリックリンクを貼り直す
+          sudo ln -sf /usr/local/go/bin/go /usr/bin/go\
 
       - name: Verify Go Version
         run: |
