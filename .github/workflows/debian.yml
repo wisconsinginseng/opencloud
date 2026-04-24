@@ -28,7 +28,7 @@ jobs:
       - name: Install Custom Go 1.25.0
         run: |
           # 1. ダウンロードと展開
-          wget https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
+          wget https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz 
           sudo rm -rf /usr/local/go
           sudo tar -C /usr/local -xzf go1.25.0-linux-armv7-custom.tar.gz
           
