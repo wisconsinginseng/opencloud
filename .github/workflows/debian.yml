@@ -27,21 +27,22 @@ jobs:
 
       - name: Install Custom Go 1.25.0
         run: |
-          # 1. ダウンロードと展開
-          wget https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz 
+          # 1. 本物のパッケージをダウンロード
+          wget https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
+          
+          # 2. /usr/local に直接展開（これで /usr/local/bin/go が出現します）
           sudo rm -rf /usr/local/go
           sudo tar -C /usr/local -xzf go1.25.0-linux-armv7-custom.tar.gz
           
-          # 2. 実行権限を念押しで付与（LS220Dでの教訓を活かします！）
-          sudo chmod +x /usr/local/go/bin/go
-          
-          # 3. /usr/local/bin (ここが一番通りやすい道) にリンクを貼る
-          sudo ln -sf /usr/local/go/bin/go /usr/local/bin/go
-          sudo ln -sf /usr/local/go/bin/gofmt /usr/local/bin/gofmt
+          # 3. 実行権限を付与（パスに注意！ /go を挟みません）
+          sudo chmod +x /usr/local/bin/go
           
           # 4. パスを最優先に設定
-          echo "/usr/local/go/bin" >> $GITHUB_PATH
+          echo "/usr/local/bin" >> $GITHUB_PATH
           
+          # 5. 念のための確認（これがログに出れば勝ち！）
+          /usr/local/bin/go version    
+
       - name: Verify Go Version
         run: |
           go version  # ここで "go1.25.1 linux/arm" と出れば勝利です！
