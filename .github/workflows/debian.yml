@@ -48,11 +48,17 @@ jobs:
 
       - name: Set Go Paths
         run: |
+          # Go本体のパス（ここをあえて標準のパスも含める）
           echo "GOROOT=/usr/local/go" >> $GITHUB_ENV
           echo "GOPATH=$HOME/go" >> $GITHUB_ENV
+          
+          # パスを通す順番を変えます
+          # 1. まず標準のGo（/usr/bin）を優先してツールをビルドさせる
+          # 2. その後に特製Goのパスを置く
+          echo "/usr/bin" >> $GITHUB_PATH
           echo "/usr/local/go/bin/linux_arm" >> $GITHUB_PATH
           echo "$HOME/go/bin" >> $GITHUB_PATH
-
+          
       - name: Build OpenCloud
         run: |
           export CGO_ENABLED=1
