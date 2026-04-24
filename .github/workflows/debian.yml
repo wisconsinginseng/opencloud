@@ -47,16 +47,22 @@ jobs:
           # 6. 最終確認（これで 1.25.0 が出れば、全工程終了です！）
           /usr/local/bin/go version
 
-
       - name: Build OpenCloud
         run: |
-          # ここにOpenCloudのビルドコマンドを記述
-          # 例: go build -o opencloud-armv7 ./main.go
           export CGO_ENABLED=1
-          go build -v -o opencloud-bin ./...
+          # 1. 念のため Makefile があるか確認
+          ls -F
+          # 2. 自動生成とビルドを実行
+          make generate
+          make -C build
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: opencloud-armv7-binary
-          path: opencloud-bin
+          # ファイル名ではなく、成果物が溜まっている「ディレクトリ」を指定するのがコツです
+          # make -C build の場合、通常は build/bin や bin/ に書き出されます
+          path: |
+            build/
+            bin/    
+          
