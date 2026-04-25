@@ -33,6 +33,7 @@ jobs:
           # 必要なライブラリとヘッダーだけをSysrootフォルダに展開
           tar -C $GITHUB_WORKSPACE/sysroot -xJf rootfs.tar.xz ./lib/arm-linux-gnueabihf ./usr/lib/arm-linux-gnueabihf ./usr/include ./usr/lib/gcc/arm-linux-gnueabihf
 
+
       - name: Stage 3: Install Cross Compiler Tool
         run: |
           # 32bit部品を接着するための専用工具（GCC）を導入
@@ -55,14 +56,3 @@ jobs:
           
           # 最終製品のビルド！
           make -C build
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: opencloud-ls220d-armv7
-          path: |
-            build/
-            bin/
-
-
-            
