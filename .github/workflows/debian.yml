@@ -1,4 +1,5 @@
 name: Build OpenCloud for LS220D (ARMv7 Native Cross)
+
 on:
   push:
     branches: [ main ]
@@ -14,40 +15,31 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23' # 安定した標準の64bit Goを使用
+          go-version: '1.23'
 
-      - name: Build Instant 32bit Sysroot (The Kondo Strategy)
+      - name: Stage 1: Generate Code (64bit Native)
         run: |
-          # 1. 隔離された部品倉庫を作成
-          mkdir -p $GITHUB_WORKSPACE/armhf-sysroot
-          cd $GITHUB_WORKSPACE/armhf-sysroot
+          # まずは標準環境でコード生成。トラブルの切り分けを明確にします。
+          make generate
 
-          # 2. Ubuntuに「armhf（ARMv7用）」の存在を教える（DLのためだけ）
-          sudo dpkg --add-architecture armhf
-          sudo apt-get update
+      - name: Stage 2: Prepare 32bit Sysroot (The Kondo Strategy)
+        run: |
+          # 隔離された「部品箱」を作成。Ubuntuのシステムは一切汚しません。
+          mkdir -p $GITHUB_WORKSPACE/sysroot
+          
+          # Debian公式のRootFS（32bit ARM）を直接ダウンロード（一本釣り）
+          curl -L https://github.com/debuerreotype/docker-debian-artifacts/raw/dist-armhf/bookworm/rootfs.tar.xz -o rootfs.tar.xz
+          
+          # 必要なライブラリとヘッダーだけをSysrootフォルダに展開
+          tar -C $GITHUB_WORKSPACE/sysroot -xJf rootfs.tar.xz ./lib/arm-linux-gnueabihf ./usr/lib/arm-linux-gnueabihf ./usr/include ./usr/lib/gcc/arm-linux-gnueabihf
 
-          # 3. libcryptを含む「有効成分」をファイルとしてDL
-          # システムにはインストールせず、ただのファイルとして取得
-          apt-get download \
-            libc6:armhf \
-            libc6-dev:armhf \
-            libcrypt1:armhf \
-            libcrypt-dev:armhf \
-            linux-libc-dev:armhf
-
-          # 4. dpkgを使って倉庫の中に中身だけを展開
-          # これにより、64bitシステムとの衝突を完全に回避！
-          for f in *.deb; do dpkg -x "$f" .; done
-
-          # 5. コンパイラが見つけやすいようにパスを調整（おまじない）
-          ln -s usr/lib/arm-linux-gnueabihf lib/arm-linux-gnueabihf
-
-      - name: Install Cross Compiler Tool
+      - name: Stage 3: Install Cross Compiler Tool
         run: |
           # 32bit部品を接着するための専用工具（GCC）を導入
+          sudo apt-get update
           sudo apt-get install -y gcc-arm-linux-gnueabihf
 
-      - name: Build OpenCloud
+      - name: Stage 4: Cross Build (ARMv7 Targeted)
         run: |
           # --- 監督の理論を実現する魔法の設定 ---
           export GOOS=linux
@@ -55,14 +47,13 @@ jobs:
           export GOARM=7
           export CGO_ENABLED=1
           
-          # 「俺が作った倉庫の部品を最優先で使え！」という指示
-          SYSROOT=$GITHUB_WORKSPACE/armhf-sysroot
-          export CGO_CFLAGS="-I$SYSROOT/usr/include"
-          export CGO_LDFLAGS="-L$SYSROOT/lib/arm-linux-gnueabihf -L$SYSROOT/usr/lib/arm-linux-gnueabihf"
+          # 抽出した「黄金の部品箱」を最優先で参照させる
+          SYSROOT=$GITHUB_WORKSPACE/sysroot
+          export CGO_CFLAGS="--sysroot=$SYSROOT -I$SYSROOT/usr/include"
+          export CGO_LDFLAGS="--sysroot=$SYSROOT -L$SYSROOT/lib/arm-linux-gnueabihf -L$SYSROOT/usr/lib/arm-linux-gnueabihf"
           export CC=arm-linux-gnueabihf-gcc
           
-          # いざ、ビルド！
-          make generate
+          # 最終製品のビルド！
           make -C build
 
       - name: Upload Artifact
@@ -71,4 +62,7 @@ jobs:
           name: opencloud-ls220d-armv7
           path: |
             build/
-            bin/  
+            bin/
+
+
+            
