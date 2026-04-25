@@ -1,57 +1,37 @@
-name: Build OpenCloud for LS220D (ARMv7 Native Cross)
-
+name: Build-OpenCloud-LS220D
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-
-      - name: Stage 1: Generate Code (64bit Native)
+      - name: Stage 1 Generate
+        run: make generate
+      - name: Stage 2 Prepare Sysroot
         run: |
-          # まずは標準環境でコード生成。トラブルの切り分けを明確にします。
-          make generate
-
-      - name: Stage 2: Prepare 32bit Sysroot (The Kondo Strategy)
-        run: |
-          # 隔離された「部品箱」を作成。Ubuntuのシステムは一切汚しません。
           mkdir -p $GITHUB_WORKSPACE/sysroot
-          
-          # Debian公式のRootFS（32bit ARM）を直接ダウンロード
           curl -L https://github.com/debuerreotype/docker-debian-artifacts/raw/dist-armhf/bookworm/rootfs.tar.xz -o rootfs.tar.xz
-          
-          # 必要なライブラリとヘッダーだけをSysrootフォルダに展開
           tar -C $GITHUB_WORKSPACE/sysroot -xJf rootfs.tar.xz ./lib/arm-linux-gnueabihf ./usr/lib/arm-linux-gnueabihf ./usr/include ./usr/lib/gcc/arm-linux-gnueabihf
-
-      - name: Stage 3: Install Cross Compiler Tool
+      - name: Stage 3 Install GCC
         run: |
-          # 32bit部品を接着するための専用工具（GCC）を導入
           sudo apt-get update
           sudo apt-get install -y gcc-arm-linux-gnueabihf
-
-      - name: Stage 4: Cross Build (ARMv7 Targeted)
+      - name: Stage 4 Build
         run: |
-          # --- 監督の理論を実現する魔法の設定 ---
           export GOOS=linux
           export GOARCH=arm
           export GOARM=7
           export CGO_ENABLED=1
-          
-          # 抽出した「黄金の部品箱」を最優先で参照させる
           SYSROOT=$GITHUB_WORKSPACE/sysroot
-          export CGO_CFLAGS="--sysroot=$SYSROOT -I$SYSROOT/usr/include"
-          export CGO_LDFLAGS="--sysroot=$SYSROOT -L$SYSROOT/lib/arm-linux-gnueabihf -L$SYSROOT/usr/lib/arm-linux-gnueabihf"
+          export CGO_CFLAGS="--sysroot=$SYSROOT"
+          export CGO_LDFLAGS="--sysroot=$SYSROOT"
           export CC=arm-linux-gnueabihf-gcc
-          
-          # 最終製品のビルド！
           make -C build
