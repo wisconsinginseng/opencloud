@@ -27,12 +27,11 @@ jobs:
           # 隔離された「部品箱」を作成。Ubuntuのシステムは一切汚しません。
           mkdir -p $GITHUB_WORKSPACE/sysroot
           
-          # Debian公式のRootFS（32bit ARM）を直接ダウンロード（一本釣り）
+          # Debian公式のRootFS（32bit ARM）を直接ダウンロード
           curl -L https://github.com/debuerreotype/docker-debian-artifacts/raw/dist-armhf/bookworm/rootfs.tar.xz -o rootfs.tar.xz
           
           # 必要なライブラリとヘッダーだけをSysrootフォルダに展開
           tar -C $GITHUB_WORKSPACE/sysroot -xJf rootfs.tar.xz ./lib/arm-linux-gnueabihf ./usr/lib/arm-linux-gnueabihf ./usr/include ./usr/lib/gcc/arm-linux-gnueabihf
-
 
       - name: Stage 3: Install Cross Compiler Tool
         run: |
