@@ -1,110 +1,68 @@
-name: Build-OpenCloud-LS220D
+name: Build OpenCloud for ARMv7 (Custom Go)
+
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    # ARMv7（32bit）環境をエミュレートして実行
+    strategy:
+      matrix:
+        arch: [armv7]
+
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          # standaloneモードを有効にすると、ロックファイルがなくても進めます
-          standalone: true
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          # ↓ エラーの原因。キャッシュ機能を一旦オフにして「身軽」にします
-          # cache: 'pnpm'
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-      - name: Force Install and Overwrite Into .bingo
-        run: |
-          # 1. まずは道具を確実にインストール
-          go install github.com/vektra/mockery/v2@latest
-          go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
-          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-          
-          # 2. Goがインストールした先のパスを特定
-          GOBIN_PATH=$(go env GOPATH)/bin
-          TARGET_DIR="${GITHUB_WORKSPACE}/.bingo"
-          mkdir -p $TARGET_DIR
-          
-          # 3. 「which」を使わず、フルパスで直接コピー！
-          # これなら「見つからない」エラーで止まることはありません
-          cp $GOBIN_PATH/mockery $TARGET_DIR/mockery-v3.4.0
-          cp $GOBIN_PATH/protoc-gen-openapiv2 $TARGET_DIR/protoc-gen-openapiv2
-          cp $GOBIN_PATH/protoc-gen-go $TARGET_DIR/protoc-gen-go
-          
-          # 4. 最後に念押しで両方にPATHを通す
-          echo "$TARGET_DIR" >> $GITHUB_PATH
-          echo "$GOBIN_PATH" >> $GITHUB_PATH
-      
-      - name: Stage 1 Generate
-        run: 
-          make generate
-
-      - name: Stage 2 - Prepare 32bit Sysroot (Bulletproof)
-        run: |
-          mkdir -p $GITHUB_WORKSPACE/sysroot
-          cd $GITHUB_WORKSPACE/sysroot
-          
-          # 1. 最小限必要な Debian 12 (armhf) 部品を直接取得
-          # ※URLはミラーの状況により変動するため、確実なパスを指定
-          DEBIAN_MIRROR="http://ftp.debian.org/debian/pool/main"
-          
-          curl -LO "${DEBIAN_MIRROR}/g/glibc/libc6-dev_2.36-9+deb12u9_armhf.deb"
-          curl -LO "${DEBIAN_MIRROR}/g/glibc/libc6_2.36-9+deb12u9_armhf.deb"
-          curl -LO "${DEBIAN_MIRROR}/g/gcc-12/libgcc-s1_12.2.0-14_armhf.deb"
-          curl -LO "${DEBIAN_MIRROR}/l/linux/linux-libc-dev_6.1.112-1_armhf.deb"
-          
-          # 2. 部品パック（.deb）をこの場で解凍
-          for f in *.deb; do dpkg-deb -x "$f" .; done
-          rm *.deb
-          
-          # 3. 【最重要】コンパイラのための「道の整備（リンク調整）」
-          # これをやらないと "cannot find /lib/libc.so.6" エラーが出ます
-          mkdir -p usr/lib/arm-linux-gnueabihf
-          cd usr/lib/arm-linux-gnueabihf
-          ln -sf ../../../lib/arm-linux-gnueabihf/libc.so.6 libc.so.6
-          ln -sf ../../../lib/arm-linux-gnueabihf/libgcc_s.so.1 libgcc_s.so.1
-          # 開発用リンク
-          ln -sf libc.so.6 libc.so
-          
-          # 4. 完了報告
-          echo "Sysroot prepared at $GITHUB_WORKSPACE/sysroot"
-      - name: Stage 3 Install GCC
+      - name: Setup Debian Environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-linux-gnueabihf
+          sudo apt-get install -y wget tar gcc libc6-dev
 
-      - name: Stage 4 Build
+
+      - name: Install Custom Go 1.25.0
+        run: |
+          # 1. ダウンロード
+          wget https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
+          
+          # 2. 一旦 /usr/local/go にすべて展開
+          sudo mkdir -p /usr/local/go
+          sudo tar -C /usr/local/go -xzf go1.25.0-linux-armv7-custom.tar.gz
+          
+          # 3. linux_arm の中にある「本物」に、外からでもアクセスできるように権限付与
+          sudo chmod +x /usr/local/go/bin/linux_arm/go
+          
+          # 4. 「本物」を /usr/local/bin/go として表舞台に立たせる（シンボリックリンク）
+          sudo ln -sf /usr/local/go/bin/linux_arm/go /usr/local/bin/go
+          
+          # 5. パスを最優先に設定
+          echo "/usr/local/bin" >> $GITHUB_PATH
+          
+          # 6. 最終確認（これで 1.25.0 が出れば、全工程終了です！）
+          /usr/local/bin/go version
+
+      - name: Build OpenCloud
         run: |
           export CGO_ENABLED=1
-          export GOOS=linux
-          export GOARCH=arm
-          export GOARM=7
-          export CC=arm-linux-gnueabihf-gcc
-          export CXX=arm-linux-gnueabihf-g++
-          # 変数展開のミスを防ぐため、${{ github.workspace }} を使うのが安全です
-          export CGO_CFLAGS="--sysroot=${{ github.workspace }}/sysroot"
-          export CGO_LDFLAGS="--sysroot=${{ github.workspace }}/sysroot"
-          
-          # 監督、ここにビルド用のコマンド（make buildなど）を追加してください！
-          make build
-      - name: Upload Build Artifacts
+          # 1. 念のため Makefile があるか確認
+          ls -F
+          # 2. 自動生成とビルドを実行
+          make generate
+          make -C build
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: opencloud-ls220d-binaries
-          # ビルドされたバイナリが出力されるパスを指定してください
-          # 例: bin/ or bin/opencloud
-          path: bin/    
+          name: opencloud-armv7-binary
+          # ファイル名ではなく、成果物が溜まっている「ディレクトリ」を指定するのがコツです
+          # make -C build の場合、通常は build/bin や bin/ に書き出されます
+          path: |
+            build/
+            bin/    
+          
