@@ -11,12 +11,17 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v4
 
+      # --- ここが重要なおまじない！ ---
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      # ------------------------------
+
       - name: Full Build Process on ARMv7
         uses: uraimo/run-on-arch-action@v2
         with:
           arch: armv7
           distro: bookworm
-          githubToken: ${{ github.token }}
+          # 以下、一昨日と同じ内容...          githubToken: ${{ github.token }}
           
           # 部屋の中での作業（インデントに注意！）
           run: |
