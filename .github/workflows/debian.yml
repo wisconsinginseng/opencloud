@@ -58,10 +58,15 @@ jobs:
             protoc --version
 
             echo "--- Phase 4: Start make generate ---"
-            # bingoツールが正常に動くよう、一度だけbingo自体をビルド
+            # 1. チェックサムDBとプロキシを「直通」に設定
+            # これで "missing GOSUMDB" を回避します
+            export GOSUMDB=off
+            export GOPROXY=direct
+            
+            # 2. bingoツールをインストール
             go install github.com/bwplotka/bingo@latest
             
-            # 本丸の generate 実行
+            # 3. 再び本番の generate 実行
             make generate
 
             echo "--- Phase 5: Final Build (ARMv7 Native) ---"
