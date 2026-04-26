@@ -84,13 +84,25 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-arm-linux-gnueabihf
+
       - name: Stage 4 Build
         run: |
-        
           export CGO_ENABLED=1
           export GOOS=linux
           export GOARCH=arm
           export GOARM=7
-          # ここが sysroot を教える魔法のフラグ
-          export CGO_CFLAGS="--sysroot=$GITHUB_WORKSPACE/sysroot"
-          export CGO_LDFLAGS="--sysroot=$GITHUB_WORKSPACE/sysroot"
+          export CC=arm-linux-gnueabihf-gcc
+          export CXX=arm-linux-gnueabihf-g++
+          # 変数展開のミスを防ぐため、${{ github.workspace }} を使うのが安全です
+          export CGO_CFLAGS="--sysroot=${{ github.workspace }}/sysroot"
+          export CGO_LDFLAGS="--sysroot=${{ github.workspace }}/sysroot"
+          
+          # 監督、ここにビルド用のコマンド（make buildなど）を追加してください！
+          make build
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencloud-ls220d-binaries
+          # ビルドされたバイナリが出力されるパスを指定してください
+          # 例: bin/ or bin/opencloud
+          path: bin/    
