@@ -11,60 +11,62 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v4
 
-      # --- ここが重要なおまじない！ ---
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
-      # ------------------------------
 
       - name: Full Build Process on ARMv7
         uses: uraimo/run-on-arch-action@v2
         with:
           arch: armv7
           distro: bookworm
-          # 以下、一昨日と同じ内容...          githubToken: ${{ github.token }}
+          githubToken: ${{ github.token }}
           
-          # 部屋の中での作業（インデントに注意！）
           run: |
-            echo "--- Phase 1: Installing Native ARM Tools ---"
-            apt-get update
-            # Debian 12 (armhf) の標準ツールをインストール
-            apt-get install -y make gcc g++ git wget curl libc6-dev libcrypt-dev
+            set -e # エラーが出たら即停止（現場の鉄則）
 
-            # 監督こだわりの Go 1.25 を「部屋の中」でセットアップ
-            # --- Phase 2: Setup Custom Go 1.25.0 (監督の黄金手順) ---
-            echo "--- Phase 2: Installing Custom Go ---"
+            echo "--- Phase 1: Installing All Native ARM Tools ---"
+            apt-get update
+            # 基本ツール + Python + Protoc + Node.js を一括導入
+            apt-get install -y make gcc g++ git wget curl libc6-dev libcrypt-dev \
+                               python3 python3-pip protobuf-compiler nodejs npm
+
+            # pnpm の導入とパス設定
+            npm install -g pnpm
+            export PATH=$(npm config get prefix)/bin:$PATH
+
+            echo "--- Phase 2: Installing Custom Go 1.25.0 (監督の黄金手順) ---"
             wget https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
-            
-            # 1. 展開（sudoは不要です。部屋の中はすでにroot権限なので）
             mkdir -p /usr/local/go
             tar -C /usr/local/go -xzf go1.25.0-linux-armv7-custom.tar.gz
             
-            # 2. linux_arm の中にある「本物」に権限付与
-            # 監督、ここがポイントでしたね！
+            # 本体とツールチェーンに権限を付与
             chmod +x /usr/local/go/bin/linux_arm/go
-            
-            # 3. ツールチェーン全体にも念のため権限を
             chmod -R +x /usr/local/go/pkg/tool/linux_arm/ || true
             
-            # 4. 「本物」を /usr/local/bin/go としてリンク
+            # シンボリックリンクで「表舞台」へ
             ln -sf /usr/local/go/bin/linux_arm/go /usr/local/bin/go
-            
-            # 5. パス設定（部屋の中の環境変数として）
             export PATH=/usr/local/bin:$PATH
             
-            # 6. 確認！これが通れば、ついに勝利のファンファーレです
-            go version
-            
-            # ネットワーク設定（GOPROXY）を念のため通す
+            # ネットワークとGoパスの設定
             export GOPROXY=https://proxy.golang.org,direct
+            export GOPATH=$HOME/go
+            export PATH=$PATH:$(go env GOPATH)/bin
+            
+            echo "--- Phase 3: Checking Tools Environment ---"
+            go version
+            pnpm --version
+            protoc --version
 
-            echo "--- Phase 3: Start make generate ---"
-            # 部屋の中は ARM なので、何も考えずに make してOK！
+            echo "--- Phase 4: Start make generate ---"
+            # bingoツールが正常に動くよう、一度だけbingo自体をビルド
+            go install github.com/bwplotka/bingo@latest
+            
+            # 本丸の generate 実行
             make generate
 
-            echo "--- Phase 4: Final Build ---"
+            echo "--- Phase 5: Final Build (ARMv7 Native) ---"
             mkdir -p bin
-            # 部屋の中は ARM なので、CGO_ENABLED=1 だけで本物の ARM バイナリが焼けます
+            # CGOを有効にして、LS220D用のバイナリを生成
             CGO_ENABLED=1 go build -v -o bin/opencloud ./cmd/opencloud
 
       - name: Archive Production
