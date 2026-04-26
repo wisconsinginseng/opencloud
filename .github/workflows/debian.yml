@@ -49,24 +49,24 @@ jobs:
           
       - name: Build OpenCloud
         run: |
-          # 1. CGOとアーキテクチャの明示
+          # 1. ネットワークとCGOの有効化
+          export GOPROXY=https://proxy.golang.org,direct
           export CGO_ENABLED=1
+          
+          # 2. 【最重要】Goに「本物のコンパイラ」の名前を教え込む
+          # Goが勝手に探そうとする名前を、インストール済みの名前に上書きします
+          export CC=arm-linux-gnueabihf-gcc
+          export CXX=arm-linux-gnueabihf-g++
+          
+          # 3. 追加の念押し：パスの設定（念のため）
           export GOOS=linux
           export GOARCH=arm
           export GOARM=7
           
-          # 2. 【最重要】ネットワーク設定（GOPROXY）の強制セット
-          # これで mockery を探しに行けるようになります
-          export GOPROXY=https://proxy.golang.org,direct
-          
-          # 3. 現状確認
-          ls -F
-          
           # 4. ビルド実行
-          # generate で止まらないよう、ツールを先に入れてしまうのも手です
           make generate
           make -C build
-
+          
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
