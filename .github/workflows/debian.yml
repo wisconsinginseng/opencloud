@@ -27,6 +27,26 @@ jobs:
           # ↓ エラーの原因。キャッシュ機能を一旦オフにして「身軽」にします
           # cache: 'pnpm'
 
+      - name: Force Overwrite Into .bingo
+        run: |
+          # 1. 確実に存在する絶対パスを取得
+          MOCKERY_PATH=$(which mockery)
+          OPENAPI_PATH=$(which protoc-gen-openapiv2)
+          PROTOC_GEN_GO_PATH=$(which protoc-gen-go)
+
+          # 2. Makefileが「ここだ」と言い張るディレクトリを特定（絶対パスで！）
+          TARGET_DIR="${GITHUB_WORKSPACE}/.bingo"
+          mkdir -p $TARGET_DIR
+
+          # 3. リンク（-sf）ではなく「コピー」で実体を置く！
+          # 名前は Variables.mk が欲しがっている名前に正確に合わせます
+          cp $MOCKERY_PATH $TARGET_DIR/mockery-v3.4.0
+          cp $OPENAPI_PATH $TARGET_DIR/protoc-gen-openapiv2
+          cp $PROTOC_GEN_GO_PATH $TARGET_DIR/protoc-gen-go
+
+          # 4. 最後に「ここにあるぞ」と念押しでPATHを通す
+          echo "$TARGET_DIR" >> $GITHUB_PATH
+
       - name: Stage 1 Generate
         run: make generate
       - name: Stage 2 Prepare Sysroot
