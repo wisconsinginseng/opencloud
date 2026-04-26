@@ -46,13 +46,23 @@ jobs:
           
           # 6. 最終確認（これで 1.25.0 が出れば、全工程終了です！）
           /usr/local/bin/go version
-
       - name: Build OpenCloud
         run: |
+          # 1. CGOとアーキテクチャの明示
           export CGO_ENABLED=1
-          # 1. 念のため Makefile があるか確認
+          export GOOS=linux
+          export GOARCH=arm
+          export GOARM=7
+          
+          # 2. 【最重要】ネットワーク設定（GOPROXY）の強制セット
+          # これで mockery を探しに行けるようになります
+          export GOPROXY=https://proxy.golang.org,direct
+          
+          # 3. 現状確認
           ls -F
-          # 2. 自動生成とビルドを実行
+          
+          # 4. ビルド実行
+          # generate で止まらないよう、ツールを先に入れてしまうのも手です
           make generate
           make -C build
 
