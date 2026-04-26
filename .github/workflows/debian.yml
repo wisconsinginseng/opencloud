@@ -50,7 +50,9 @@ jobs:
           echo "$GOBIN_PATH" >> $GITHUB_PATH
       
       - name: Stage 1 Generate
-        run: make generate
+        run: 
+          make generate
+
       - name: Stage 2: Prepare 32bit Sysroot (Bulletproof)
         run: |
           mkdir -p $GITHUB_WORKSPACE/sysroot
