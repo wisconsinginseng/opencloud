@@ -51,23 +51,47 @@ jobs:
       
       - name: Stage 1 Generate
         run: make generate
-      - name: Stage 2 Prepare Sysroot
+
+      - name: Stage 2: Prepare 32bit Sysroot (Bulletproof)
         run: |
           mkdir -p $GITHUB_WORKSPACE/sysroot
-          curl -L https://github.com/debuerreotype/docker-debian-artifacts/raw/dist-armhf/bookworm/rootfs.tar.xz -o rootfs.tar.xz
-          tar -C $GITHUB_WORKSPACE/sysroot -xJf rootfs.tar.xz ./lib/arm-linux-gnueabihf ./usr/lib/arm-linux-gnueabihf ./usr/include ./usr/lib/gcc/arm-linux-gnueabihf
+          cd $GITHUB_WORKSPACE/sysroot
+          
+          # 1. 最小限必要な Debian 12 (armhf) 部品を直接取得
+          # ※URLはミラーの状況により変動するため、確実なパスを指定
+          DEBIAN_MIRROR="http://ftp.debian.org/debian/pool/main"
+          
+          curl -LO "${DEBIAN_MIRROR}/g/glibc/libc6-dev_2.36-9+deb12u9_armhf.deb"
+          curl -LO "${DEBIAN_MIRROR}/g/glibc/libc6_2.36-9+deb12u9_armhf.deb"
+          curl -LO "${DEBIAN_MIRROR}/g/gcc-12/libgcc-s1_12.2.0-14_armhf.deb"
+          curl -LO "${DEBIAN_MIRROR}/l/linux/linux-libc-dev_6.1.112-1_armhf.deb"
+          
+          # 2. 部品パック（.deb）をこの場で解凍
+          for f in *.deb; do dpkg-deb -x "$f" .; done
+          rm *.deb
+          
+          # 3. 【最重要】コンパイラのための「道の整備（リンク調整）」
+          # これをやらないと "cannot find /lib/libc.so.6" エラーが出ます
+          mkdir -p usr/lib/arm-linux-gnueabihf
+          cd usr/lib/arm-linux-gnueabihf
+          ln -sf ../../../lib/arm-linux-gnueabihf/libc.so.6 libc.so.6
+          ln -sf ../../../lib/arm-linux-gnueabihf/libgcc_s.so.1 libgcc_s.so.1
+          # 開発用リンク
+          ln -sf libc.so.6 libc.so
+          
+          # 4. 完了報告
+          echo "Sysroot prepared at $GITHUB_WORKSPACE/sysroot"
       - name: Stage 3 Install GCC
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-arm-linux-gnueabihf
       - name: Stage 4 Build
         run: |
+        
+          export CGO_ENABLED=1
           export GOOS=linux
           export GOARCH=arm
           export GOARM=7
-          export CGO_ENABLED=1
-          SYSROOT=$GITHUB_WORKSPACE/sysroot
-          export CGO_CFLAGS="--sysroot=$SYSROOT"
-          export CGO_LDFLAGS="--sysroot=$SYSROOT"
-          export CC=arm-linux-gnueabihf-gcc
-          make -C build
+          # ここが sysroot を教える魔法のフラグ
+          export CGO_CFLAGS="--sysroot=$GITHUB_WORKSPACE/sysroot"
+          export CGO_LDFLAGS="--sysroot=$GITHUB_WORKSPACE/sysroot"
