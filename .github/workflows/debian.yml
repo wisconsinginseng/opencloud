@@ -26,27 +26,23 @@ jobs:
 
             echo "--- Phase 1: Installing All Native ARM Tools (Manual Node 20) ---"
             apt-get update
+            # 【重要】xz-utils を追加して、.tar.xz を解凍できるようにします
             apt-get install -y make gcc g++ git wget curl libc6-dev libcrypt-dev \
-                               python3 protobuf-compiler
+                               python3 protobuf-compiler xz-utils
 
             # --- Node.js v20.18.3 (ARMv7 32-bit) 手動インストール ---
             echo "--- Downloading Node.js v20 for ARMv7 ---"
-            # 確実に 32bit ARM (armv7l) 用のバイナリを取得
             wget https://nodejs.org/dist/v20.18.3/node-v20.18.3-linux-armv7l.tar.xz
+            
+            # 今度は xz-utils があるので、このコマンドが通ります！
             tar -xJf node-v20.18.3-linux-armv7l.tar.xz
             
-            # /usr/local に中身を移動してパスを通す
+            # /usr/local に展開（フォルダ名に注意してコピー）
             cp -rn node-v20.18.3-linux-armv7l/* /usr/local/
             
-            # pnpm 導入（Nodeが新しくなったので成功するはずです）
+            # pnpm 導入
             npm install -g pnpm
             export PATH=$(npm config get prefix)/bin:$PATH
-            
-            echo "--- Environment Check ---"
-            node -v
-            npm -v
-            pnpm -v
-
             # pnpm 導入とパス設定
             npm install -g pnpm
             export PATH=$(npm config get prefix)/bin:$PATH
