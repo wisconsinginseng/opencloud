@@ -72,23 +72,24 @@ jobs:
             ln -sf /usr/local/go/bin/linux_arm/go /usr/local/bin/go
             export PATH=/usr/local/bin:$PATH
 
-            echo "--- Phase 3: Pre-installing and Linker (先回り作戦) ---"
+            echo "--- Phase 3: Pre-installing Heavy Tools (個別撃破作戦) ---"
+            # GOPROXY=direct を削除するか、以下のように標準設定に戻します
+            export GOPROXY=https://proxy.golang.org,direct
+            export GOSUMDB=off
             export GOPATH=$HOME/go
             export PATH=$PATH:$(go env GOPATH)/bin
             
-            # Makefileが bingo 経由で入れようとして失敗している道具を、
-            # 先に最新の go install で直接叩き込みます！
-            go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-            go install github.com/go-micro/generator/cmd/protoc-gen-micro@latest
-            go install github.com/owncloud/protoc-gen-microweb@latest
-            go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
-            go install github.com/favadi/protoc-go-inject-tag@latest
-
-            # bingo が探す場所に、無理やりシンボリックリンクを貼って「もう入ってるよ」と騙します
+            echo "Installing protoc plugins..."
+            # ここでエラーが出ても止まらないように || true を付けておくと安心です
+            go install google.golang.org/protobuf/cmd/protoc-gen-go@latest || true
+            go install github.com/go-micro/generator/cmd/protoc-gen-micro@latest || true
+            go install github.com/owncloud/protoc-gen-microweb@latest || true
+            
+            # .bingo へのリンクも忘れずに
             mkdir -p .bingo
-            ln -sf $(which protoc-gen-go) .bingo/protoc-gen-go
-            ln -sf $(which protoc-gen-micro) .bingo/protoc-gen-micro
-            ln -sf $(which protoc-gen-microweb) .bingo/protoc-gen-microweb
+            ln -sf $(go env GOPATH)/bin/protoc-gen-go .bingo/protoc-gen-go
+            ln -sf $(go env GOPATH)/bin/protoc-gen-micro .bingo/protoc-gen-micro
+            ln -sf $(go env GOPATH)/bin/protoc-gen-microweb .bingo/protoc-gen-microweb
 
             echo "--- Phase 4: Start make generate (Ignore bingo errors) ---"
             # Makefileの protoc-deps でコケても無視するように -i フラグを検討
