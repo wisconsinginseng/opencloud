@@ -24,15 +24,28 @@ jobs:
           run: |
             set -e # エラーが出たら即停止（現場の鉄則）
 
-            echo "--- Phase 1: Installing All Native ARM Tools (Node 20 Upgrade) ---"
+            echo "--- Phase 1: Installing All Native ARM Tools (Manual Node 20) ---"
             apt-get update
             apt-get install -y make gcc g++ git wget curl libc6-dev libcrypt-dev \
-                               python3 python3-pip protobuf-compiler
+                               python3 protobuf-compiler
 
-            # --- Node.js v20 (LTS) の導入 ---
-            # Debian標準の v18 ではなく、最新の LTS を入れます
-            curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-            apt-get install -y nodejs
+            # --- Node.js v20.18.3 (ARMv7 32-bit) 手動インストール ---
+            echo "--- Downloading Node.js v20 for ARMv7 ---"
+            # 確実に 32bit ARM (armv7l) 用のバイナリを取得
+            wget https://nodejs.org/dist/v20.18.3/node-v20.18.3-linux-armv7l.tar.xz
+            tar -xJf node-v20.18.3-linux-armv7l.tar.xz
+            
+            # /usr/local に中身を移動してパスを通す
+            cp -rn node-v20.18.3-linux-armv7l/* /usr/local/
+            
+            # pnpm 導入（Nodeが新しくなったので成功するはずです）
+            npm install -g pnpm
+            export PATH=$(npm config get prefix)/bin:$PATH
+            
+            echo "--- Environment Check ---"
+            node -v
+            npm -v
+            pnpm -v
 
             # pnpm 導入とパス設定
             npm install -g pnpm
