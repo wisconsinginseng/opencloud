@@ -42,11 +42,16 @@ jobs:
             npm install -g pnpm
             export PATH=$(npm config get prefix)/bin:$PATH
 
-            echo "--- Phase 2: Installing Custom Go (監督の黄金手順) ---"
+            echo "--- Phase 2: Installing Custom Go (監督の黄金手順 改) ---"
             wget https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
             mkdir -p /usr/local/go
             tar -C /usr/local/go -xzf go1.25.0-linux-armv7-custom.tar.gz
-            chmod +x /usr/local/go/bin/linux_arm/go
+            
+            # --- ここを強化！ ---
+            # bin の中だけでなく、pkg/tool の中のコンパイラにも権限を付与します
+            find /usr/local/go/bin -type f -exec chmod +x {} +
+            find /usr/local/go/pkg/tool -type f -exec chmod +x {} +
+            
             ln -sf /usr/local/go/bin/linux_arm/go /usr/local/bin/go
             export PATH=/usr/local/bin:$PATH
 
