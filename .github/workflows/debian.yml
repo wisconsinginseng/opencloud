@@ -14,7 +14,7 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v4
 
-      # --- 兵站の確保：生成物とライブラリをキャッシュ ---
+      # --- 中間セーブポイント（キャッシュ）の設定 ---
       - name: Cache Build Assets
         id: cache-assets
         uses: actions/cache@v4
@@ -24,6 +24,7 @@ jobs:
             ~/.cache/go-build
             **/protogen
             services/**/gen
+            pkg/**/gen
           key: ${{ runner.os }}-opencloud-v1-${{ hashFiles('**/go.sum', '**/*.proto') }}
           restore-keys: |
             ${{ runner.os }}-opencloud-v1-
@@ -37,15 +38,16 @@ jobs:
           arch: armv7
           distro: bookworm
           githubToken: ${{ github.token }}
+          # ↓ここから下が「コンテナ内で実行される魂の命令」です
           run: |
             set -e
             export GOMAXPROCS=1
             export GOGC=50
 
-            echo "--- Phase 1: Environment Setup ---"
+            echo "--- Phase 1: OS Packages ---"
             apt-get update && apt-get install -y make gcc g++ git wget curl libc6-dev libcrypt-dev python3 protobuf-compiler xz-utils
-            
-            # Node 20 & Custom Go 1.25 (監督の黄金手順)
+
+            echo "--- Phase 2: Node.js & Go Setup ---"
             if [ ! -f /usr/local/bin/node ]; then
               wget -q https://nodejs.org/dist/v20.18.3/node-v20.18.3-linux-armv7l.tar.xz
               tar -xJf node-v20.18.3-linux-armv7l.tar.xz
@@ -66,20 +68,26 @@ jobs:
             export GOPROXY=https://proxy.golang.org,direct
 
             echo "--- Phase 4: Conditional Generate ---"
-            # キャッシュがあれば重い作業をスキップ
+            # キャッシュがあれば重い作業をスキップします
             if [ "${{ steps.cache-assets.outputs.cache-hit }}" != "true" ]; then
+              echo "Cache Miss: Generating..."
               go install github.com/bwplotka/bingo@latest
               make -j1 -i generate-prod || true
+            else
+              echo "Cache Hit: Skipping generate step!"
             fi
 
             echo "--- Phase 5: Final Build (VCS Checkmate) ---"
+            # 監督が見つけた正解「opencloud」ディレクトリでのビルド
+            # 1. Gitの所有権警告を完全封鎖
             git config --global --add safe.directory '*'
             
-            # 監督が見つけた正規ルート & VCS無効化
+            # 2. VCSスタンプを無効化してビルド完走を狙う
             make -C opencloud build GOFLAGS="-buildvcs=false"
 
-            mkdir -p bin_output
-            find opencloud/bin -name "opencloud" -type f -executable -exec cp -v {} bin_output/ \;
+            # 成果物の回収（bin フォルダ内をくまなく探します）
+            mkdir -p /home/runner/work/opencloud/opencloud/bin_output
+            find . -name "opencloud" -type f -executable -not -path "*/node_modules/*" -exec cp -v {} /home/runner/work/opencloud/opencloud/bin_output/ \;
 
       - name: Archive Production
         uses: actions/upload-artifact@v4
