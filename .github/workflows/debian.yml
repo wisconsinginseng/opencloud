@@ -97,9 +97,14 @@ jobs:
             make -j1 -i generate-prod || true
 
             echo "--- Phase 5: Final Build ---"
-            mkdir -p bin
-            CGO_ENABLED=1 go build -v -o bin/opencloud ./cmd/opencloud
+            # 念のため、今どこにいるか確認（デバッグ用）
+            pwd
+            ls -R cmd/opencloud || echo "Not found in current dir"
 
+            # 適切なディレクトリに移動してからビルド、またはパスを指定
+            mkdir -p bin
+            CGO_ENABLED=1 go build -v -o bin/opencloud ./cmd/opencloud/main.go || \
+            CGO_ENABLED=1 go build -v -o bin/opencloud ./cmd/opencloud
       - name: Archive Production
         uses: actions/upload-artifact@v4
         with:
