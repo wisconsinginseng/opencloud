@@ -90,17 +90,15 @@ jobs:
             # bingoのエラーを許容しつつ、可能な限りコードを生成
             make -j1 -i generate-prod || true
 
-            echo "--- Phase 5: Final Build via make -C build (正規ルート) ---"
-            # 監督こだわりの「正規の手順」でバイナリを焼き上げる
-            make -C build
+            echo "--- Phase 5: Final Build via make -C opencloud build ---"
+            # 監督が発見された「正解のルート」でビルドをかけます
+            make -C opencloud build
 
             # 成果物の回収
             mkdir -p bin_output
-            # build/bin 下に生成される完成品を探してコピー
-            find build/bin -name "opencloud" -type f -executable -exec cp {} bin_output/ \;
-            # もし場所が違った場合の予備捜索
-            find . -maxdepth 3 -name "opencloud" -type f -executable -not -path "*/node_modules/*" -exec cp -n {} bin_output/ \;
-
+            # opencloud/bin やその周辺に生成されるバイナリを確実に拾います
+            find opencloud -name "opencloud" -type f -executable -exec cp -v {} bin_output/ \;
+            
       - name: Archive Production
         uses: actions/upload-artifact@v4
         with:
