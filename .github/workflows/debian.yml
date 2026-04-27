@@ -15,6 +15,17 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v4
 
+      # --- 兵站（キャッシュ）の確保！ここが今回の肝です ---
+      - name: Setup Go Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
