@@ -91,13 +91,18 @@ jobs:
             make -j1 -i generate-prod || true
 
             echo "--- Phase 5: Final Build via make -C opencloud build ---"
-            # 監督が発見された「正解のルート」でビルドをかけます
+            # Gitの所有権警告を回避し、VCS埋め込みを無効化してビルド
+            # 監督、この GOFLAGS が魔法の言葉です！
+            git config --global --add safe.directory /home/runner/work/opencloud/opencloud
+            export GOFLAGS="-buildvcs=false"
+            
             make -C opencloud build
 
             # 成果物の回収
             mkdir -p bin_output
-            # opencloud/bin やその周辺に生成されるバイナリを確実に拾います
-            find opencloud -name "opencloud" -type f -executable -exec cp -v {} bin_output/ \;
+            find opencloud/bin -name "opencloud" -type f -executable -exec cp -v {} bin_output/ \;
+            # もし上の階層にできていた場合の予備
+            find . -maxdepth 3 -name "opencloud" -type f -executable -not -path "*/node_modules/*" -exec cp -v -n {} bin_output/ \;
             
       - name: Archive Production
         uses: actions/upload-artifact@v4
