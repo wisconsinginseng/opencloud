@@ -4,7 +4,7 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-# --- 警告を黙らせるおまじないを追加 ---
+# 警告を黙らせ、Nodeの実行環境を安定させる
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -15,7 +15,7 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v4
 
-      # --- 兵站（キャッシュ）の確保！ここが今回の肝です ---
+      # 兵站（キャッシュ）の確保。二回目以降のビルドを高速化します
       - name: Setup Go Cache
         uses: actions/cache@v4
         with:
@@ -38,19 +38,17 @@ jobs:
           
           run: |
             set -e
-             # Goの並列度を制限（デフォルトはCPUコア数だが、メモリ保護のために 1 に絞る）
-             export GOMAXPROCS=1
-             # Goのガベージコレクション（メモリ掃除）を頻繁に行わせる
-             # 数値を小さくするほど、メモリを溜め込まずにこまめに掃除します
-             export GOGC=50         
-            echo "--- Phase 1: Installing Tools (Manual Node 20) ---"
+
+            # --- 現場の知恵：リソース制限 ---
+            export GOMAXPROCS=1
+            export GOGC=50
+
+            echo "--- Phase 1: Installing Tools (Native Node 20) ---"
             apt-get update
             apt-get install -y make gcc g++ git wget curl libc6-dev libcrypt-dev \
                                python3 protobuf-compiler xz-utils
 
-
-            
-            # Node 20 手動インストール
+            # Node 20 手動インストール（ARMv7用ネイティブバイナリ）
             wget https://nodejs.org/dist/v20.18.3/node-v20.18.3-linux-armv7l.tar.xz
             tar -xJf node-v20.18.3-linux-armv7l.tar.xz
             cp -rn node-v20.18.3-linux-armv7l/* /usr/local/
@@ -64,49 +62,47 @@ jobs:
             mkdir -p /usr/local/go
             tar -C /usr/local/go -xzf go1.25.0-linux-armv7-custom.tar.gz
             
-            # --- ここを強化！ ---
-            # bin の中だけでなく、pkg/tool の中のコンパイラにも権限を付与します
+            # ツールチェーンの全実行ファイルに権限を付与
             find /usr/local/go/bin -type f -exec chmod +x {} +
             find /usr/local/go/pkg/tool -type f -exec chmod +x {} +
             
             ln -sf /usr/local/go/bin/linux_arm/go /usr/local/bin/go
             export PATH=/usr/local/bin:$PATH
 
-            echo "--- Phase 3: Pre-installing Heavy Tools (個別撃破作戦) ---"
-            # GOPROXY=direct を削除するか、以下のように標準設定に戻します
+            echo "--- Phase 3: Pre-installing Heavy Tools (GOSUMDB対策) ---"
             export GOPROXY=https://proxy.golang.org,direct
             export GOSUMDB=off
             export GOPATH=$HOME/go
             export PATH=$PATH:$(go env GOPATH)/bin
             
-            echo "Installing protoc plugins..."
-            # ここでエラーが出ても止まらないように || true を付けておくと安心です
+            # 必要なプラグインを先行インストール
             go install google.golang.org/protobuf/cmd/protoc-gen-go@latest || true
             go install github.com/go-micro/generator/cmd/protoc-gen-micro@latest || true
             go install github.com/owncloud/protoc-gen-microweb@latest || true
             
-            # .bingo へのリンクも忘れずに
+            # bingoの代わりとなるリンクを物理的に作成
             mkdir -p .bingo
             ln -sf $(go env GOPATH)/bin/protoc-gen-go .bingo/protoc-gen-go
             ln -sf $(go env GOPATH)/bin/protoc-gen-micro .bingo/protoc-gen-micro
             ln -sf $(go env GOPATH)/bin/protoc-gen-microweb .bingo/protoc-gen-microweb
 
-            echo "--- Phase 4: Start make generate (Ignore bingo errors) ---"
-            # Makefileの protoc-deps でコケても無視するように -i フラグを検討
-            # あるいは、最初から個別に make していきます
+            echo "--- Phase 4: Start make generate ---"
+            # bingoのエラーを許容しつつ、可能な限りコードを生成
             make -j1 -i generate-prod || true
 
-            echo "--- Phase 5: Final Build ---"
-            # 念のため、今どこにいるか確認（デバッグ用）
-            pwd
-            ls -R cmd/opencloud || echo "Not found in current dir"
+            echo "--- Phase 5: Final Build via make -C build (正規ルート) ---"
+            # 監督こだわりの「正規の手順」でバイナリを焼き上げる
+            make -C build
 
-            # 適切なディレクトリに移動してからビルド、またはパスを指定
-            mkdir -p bin
-            CGO_ENABLED=1 go build -v -o bin/opencloud ./cmd/opencloud/main.go || \
-            CGO_ENABLED=1 go build -v -o bin/opencloud ./cmd/opencloud
+            # 成果物の回収
+            mkdir -p bin_output
+            # build/bin 下に生成される完成品を探してコピー
+            find build/bin -name "opencloud" -type f -executable -exec cp {} bin_output/ \;
+            # もし場所が違った場合の予備捜索
+            find . -maxdepth 3 -name "opencloud" -type f -executable -not -path "*/node_modules/*" -exec cp -n {} bin_output/ \;
+
       - name: Archive Production
         uses: actions/upload-artifact@v4
         with:
           name: opencloud-ls220d-native
-          path: bin/
+          path: bin_output/
