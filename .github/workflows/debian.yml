@@ -4,6 +4,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# --- 警告を黙らせるおまじないを追加 ---
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   armv7-build:
     runs-on: ubuntu-latest
@@ -22,71 +26,50 @@ jobs:
           githubToken: ${{ github.token }}
           
           run: |
-            set -e # エラーが出たら即停止（現場の鉄則）
+            set -e
 
-            echo "--- Phase 1: Installing All Native ARM Tools (Manual Node 20) ---"
+            echo "--- Phase 1: Installing Tools (Manual Node 20) ---"
             apt-get update
-            # 【重要】xz-utils を追加して、.tar.xz を解凍できるようにします
             apt-get install -y make gcc g++ git wget curl libc6-dev libcrypt-dev \
                                python3 protobuf-compiler xz-utils
-
-            # --- Node.js v20.18.3 (ARMv7 32-bit) 手動インストール ---
-            echo "--- Downloading Node.js v20 for ARMv7 ---"
+            
+            # Node 20 手動インストール
             wget https://nodejs.org/dist/v20.18.3/node-v20.18.3-linux-armv7l.tar.xz
-            
-            # 今度は xz-utils があるので、このコマンドが通ります！
             tar -xJf node-v20.18.3-linux-armv7l.tar.xz
-            
-            # /usr/local に展開（フォルダ名に注意してコピー）
             cp -rn node-v20.18.3-linux-armv7l/* /usr/local/
             
             # pnpm 導入
             npm install -g pnpm
             export PATH=$(npm config get prefix)/bin:$PATH
-            # pnpm 導入とパス設定
-            npm install -g pnpm
-            export PATH=$(npm config get prefix)/bin:$PATH
-            
-            echo "--- Node version check ---"
-            node -v # ここで v20.x.x と出れば勝利確定です！
-            echo "--- Phase 2: Installing Custom Go 1.25.0 (監督の黄金手順) ---"
+
+            echo "--- Phase 2: Installing Custom Go (監督の黄金手順) ---"
             wget https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
             mkdir -p /usr/local/go
             tar -C /usr/local/go -xzf go1.25.0-linux-armv7-custom.tar.gz
-            
-            # 本体とツールチェーンに権限を付与
             chmod +x /usr/local/go/bin/linux_arm/go
-            chmod -R +x /usr/local/go/pkg/tool/linux_arm/ || true
-            
-            # シンボリックリンクで「表舞台」へ
             ln -sf /usr/local/go/bin/linux_arm/go /usr/local/bin/go
             export PATH=/usr/local/bin:$PATH
-            
-            # ネットワークとGoパスの設定
-            export GOPROXY=https://proxy.golang.org,direct
+
+            echo "--- Phase 3: Pre-installing Heavy Tools (個別撃破作戦) ---"
+            # セキュリティチェックをOFFにして、重いツールを先にビルド
+            export GOSUMDB=off
+            export GOPROXY=direct
             export GOPATH=$HOME/go
             export PATH=$PATH:$(go env GOPATH)/bin
             
-            echo "--- Phase 3: Checking Tools Environment ---"
-            go version
-            pnpm --version
-            protoc --version
-
-            echo "--- Phase 4: Start make generate ---"
-            # 1. チェックサムDBとプロキシを「直通」に設定
-            # これで "missing GOSUMDB" を回避します
-            export GOSUMDB=off
-            export GOPROXY=direct
-            
-            # 2. bingoツールをインストール
+            echo "Installing bingo..."
             go install github.com/bwplotka/bingo@latest
             
-            # 3. 再び本番の generate 実行
-            make generate
+            echo "Installing mockery (This is the 40-min wall!) ---"
+            # ここでわざと verbose(-v) を付けて、進捗を可視化します！
+            go install -v github.com/vektra/mockery/v3@v3.4.0 || true
 
-            echo "--- Phase 5: Final Build (ARMv7 Native) ---"
+            echo "--- Phase 4: Start make generate ---"
+            # 並列数を 1 に制限して、メモリ不足によるフリーズを防ぎます
+            make -j1 generate-prod
+
+            echo "--- Phase 5: Final Build ---"
             mkdir -p bin
-            # CGOを有効にして、LS220D用のバイナリを生成
             CGO_ENABLED=1 go build -v -o bin/opencloud ./cmd/opencloud
 
       - name: Archive Production
