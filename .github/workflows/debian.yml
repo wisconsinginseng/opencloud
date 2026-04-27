@@ -39,12 +39,10 @@ jobs:
           run: |
             set -e
              # Goの並列度を制限（デフォルトはCPUコア数だが、メモリ保護のために 1 に絞る）
-            　　export GOMAXPROCS=1
-
+             export GOMAXPROCS=1
              # Goのガベージコレクション（メモリ掃除）を頻繁に行わせる
              # 数値を小さくするほど、メモリを溜め込まずにこまめに掃除します
-              　export GOGC=50
-                      
+             export GOGC=50         
             echo "--- Phase 1: Installing Tools (Manual Node 20) ---"
             apt-get update
             apt-get install -y make gcc g++ git wget curl libc6-dev libcrypt-dev \
