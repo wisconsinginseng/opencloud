@@ -4,7 +4,6 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-# 警告を黙らせ、Nodeの実行環境を安定させる
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -15,16 +14,19 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v4
 
-      # 兵站（キャッシュ）の確保。二回目以降のビルドを高速化します
-      - name: Setup Go Cache
+      # --- 兵站の確保：生成物とライブラリをキャッシュ ---
+      - name: Cache Build Assets
+        id: cache-assets
         uses: actions/cache@v4
         with:
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+            **/protogen
+            services/**/gen
+          key: ${{ runner.os }}-opencloud-v1-${{ hashFiles('**/go.sum', '**/*.proto') }}
           restore-keys: |
-            ${{ runner.os }}-go-
+            ${{ runner.os }}-opencloud-v1-
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -35,75 +37,50 @@ jobs:
           arch: armv7
           distro: bookworm
           githubToken: ${{ github.token }}
-          
           run: |
             set -e
-
-            # --- 現場の知恵：リソース制限 ---
             export GOMAXPROCS=1
             export GOGC=50
 
-            echo "--- Phase 1: Installing Tools (Native Node 20) ---"
-            apt-get update
-            apt-get install -y make gcc g++ git wget curl libc6-dev libcrypt-dev \
-                               python3 protobuf-compiler xz-utils
-
-            # Node 20 手動インストール（ARMv7用ネイティブバイナリ）
-            wget https://nodejs.org/dist/v20.18.3/node-v20.18.3-linux-armv7l.tar.xz
-            tar -xJf node-v20.18.3-linux-armv7l.tar.xz
-            cp -rn node-v20.18.3-linux-armv7l/* /usr/local/
+            echo "--- Phase 1: Environment Setup ---"
+            apt-get update && apt-get install -y make gcc g++ git wget curl libc6-dev libcrypt-dev python3 protobuf-compiler xz-utils
             
-            # pnpm 導入
+            # Node 20 & Custom Go 1.25 (監督の黄金手順)
+            if [ ! -f /usr/local/bin/node ]; then
+              wget -q https://nodejs.org/dist/v20.18.3/node-v20.18.3-linux-armv7l.tar.xz
+              tar -xJf node-v20.18.3-linux-armv7l.tar.xz
+              cp -rn node-v20.18.3-linux-armv7l/* /usr/local/
+            fi
             npm install -g pnpm
             export PATH=$(npm config get prefix)/bin:$PATH
 
-            echo "--- Phase 2: Installing Custom Go (監督の黄金手順 改) ---"
-            wget https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
-            mkdir -p /usr/local/go
-            tar -C /usr/local/go -xzf go1.25.0-linux-armv7-custom.tar.gz
-            
-            # ツールチェーンの全実行ファイルに権限を付与
-            find /usr/local/go/bin -type f -exec chmod +x {} +
-            find /usr/local/go/pkg/tool -type f -exec chmod +x {} +
-            
+            if [ ! -d /usr/local/go ]; then
+              wget -q https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
+              mkdir -p /usr/local/go
+              tar -C /usr/local/go -xzf go1.25.0-linux-armv7-custom.tar.gz
+              find /usr/local/go/bin -type f -exec chmod +x {} +
+            fi
             ln -sf /usr/local/go/bin/linux_arm/go /usr/local/bin/go
             export PATH=/usr/local/bin:$PATH
-
-            echo "--- Phase 3: Pre-installing Heavy Tools (GOSUMDB対策) ---"
-            export GOPROXY=https://proxy.golang.org,direct
             export GOSUMDB=off
-            export GOPATH=$HOME/go
-            export PATH=$PATH:$(go env GOPATH)/bin
-            
-            # 必要なプラグインを先行インストール
-            go install google.golang.org/protobuf/cmd/protoc-gen-go@latest || true
-            go install github.com/go-micro/generator/cmd/protoc-gen-micro@latest || true
-            go install github.com/owncloud/protoc-gen-microweb@latest || true
-            
-            # bingoの代わりとなるリンクを物理的に作成
-            mkdir -p .bingo
-            ln -sf $(go env GOPATH)/bin/protoc-gen-go .bingo/protoc-gen-go
-            ln -sf $(go env GOPATH)/bin/protoc-gen-micro .bingo/protoc-gen-micro
-            ln -sf $(go env GOPATH)/bin/protoc-gen-microweb .bingo/protoc-gen-microweb
+            export GOPROXY=https://proxy.golang.org,direct
 
-            echo "--- Phase 4: Start make generate ---"
-            # bingoのエラーを許容しつつ、可能な限りコードを生成
-            make -j1 -i generate-prod || true
+            echo "--- Phase 4: Conditional Generate ---"
+            # キャッシュがあれば重い作業をスキップ
+            if [ "${{ steps.cache-assets.outputs.cache-hit }}" != "true" ]; then
+              go install github.com/bwplotka/bingo@latest
+              make -j1 -i generate-prod || true
+            fi
 
-            echo "--- Phase 5: Final Build via make -C opencloud build ---"
-            # Gitの所有権警告を回避し、VCS埋め込みを無効化してビルド
-            # 監督、この GOFLAGS が魔法の言葉です！
-            git config --global --add safe.directory /home/runner/work/opencloud/opencloud
-            export GOFLAGS="-buildvcs=false"
+            echo "--- Phase 5: Final Build (VCS Checkmate) ---"
+            git config --global --add safe.directory '*'
             
-            make -C opencloud build
+            # 監督が見つけた正規ルート & VCS無効化
+            make -C opencloud build GOFLAGS="-buildvcs=false"
 
-            # 成果物の回収
             mkdir -p bin_output
             find opencloud/bin -name "opencloud" -type f -executable -exec cp -v {} bin_output/ \;
-            # もし上の階層にできていた場合の予備
-            find . -maxdepth 3 -name "opencloud" -type f -executable -not -path "*/node_modules/*" -exec cp -v -n {} bin_output/ \;
-            
+
       - name: Archive Production
         uses: actions/upload-artifact@v4
         with:
