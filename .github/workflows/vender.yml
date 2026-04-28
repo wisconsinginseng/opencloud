@@ -20,8 +20,12 @@ jobs:
           githubToken: ${{ github.token }}
           
           # 現場（Debian Bookworm）のセットアップ
-          # 権限エラー回避のオプションを追加しています
+          # 1. 既存のロックファイルを強制排除
+          # 2. aptのキャッシュエラーを黙らせる
           setup: |
+            rm -f /var/lib/apt/lists/lock
+            rm -f /var/cache/apt/archives/lock
+            rm -f /var/lib/dpkg/lock*
             apt-get -o Dir::Cache::pkgcache="" -o Dir::Cache::srcpkgcache="" update
             apt-get install -y --no-install-recommends wget tar ca-certificates gcc libc6-dev
 
