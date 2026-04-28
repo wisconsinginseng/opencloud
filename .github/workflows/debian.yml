@@ -91,20 +91,23 @@ jobs:
             fi
             
             # Phase 5: Final Build
-            # Makefileの29行目にある STRING の決定プロセスを、コマンドライン引数でねじ伏せます
+            echo "--- Phase 5: Final Build ---"
+            # 1. Gitの所有権警告を完全封鎖
+            git config --global --add safe.directory '*'
+
+            # 2. MakefileのGit呼び出しを、引数で完全にねじ伏せて実行
             make -C opencloud build \
-            GOFLAGS="-buildvcs=false" \
-            STRING="ls220d-release" \
-            VERSION="1.25.0" \
-            DATE="$(date +%Y%m%d)"
+              GOFLAGS="-buildvcs=false" \
+              STRING="ls220d-release" \
+              VERSION="1.25.0" \
+              DATE="$(date +%Y%m%d)"
             
-            # 2. VCSスタンプを無効化してビルド完走を狙う
-            make -C opencloud build GOFLAGS="-buildvcs=false"
+            # (旧来の make コマンドはここで削除してください)
 
-            # 成果物の回収（bin フォルダ内をくまなく探します）
-            mkdir -p /home/runner/work/opencloud/opencloud/bin_output
-            find . -name "opencloud" -type f -executable -not -path "*/node_modules/*" -exec cp -v {} /home/runner/work/opencloud/opencloud/bin_output/ \;
-
+            # 3. 成果物の回収（パスを相対パスにして確実に）
+            mkdir -p bin_output
+            find . -name "opencloud" -type f -executable -not -path "*/node_modules/*" -exec cp -v {} bin_output/ \;
+      
       - name: Archive Production
         uses: actions/upload-artifact@v4
         with:
