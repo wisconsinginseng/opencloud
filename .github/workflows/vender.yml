@@ -2,64 +2,53 @@ name: DIRECTORS-SPECIAL-BUILD
 
 on:
   push:
-    branches:
-      - main  # mainブランチに書き込みがあったら即実行！
-    tags:
-      - 'v*'
+    branches: [ main ]
+    tags: [ 'v*' ]
 
 jobs:
-  build-and-vendor:
+  arm-build-task:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Source
         uses: actions/checkout@v4
 
-      # 1. 監督特製GoをReleaseから召喚（自動追跡モード）
-      - name: Setup Custom Go (The Director's Special)
-        run: |
-          wget -q https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
+      - name: Build and Vendor on ARMv7
+        uses: uraimo/run-on-arch-action@v2
+        with:
+          arch: armv7
+          distro: bookworm
+          githubToken: ${{ github.token }}
           
-          # 混乱を防ぐため、一度まっさらにして展開
-          sudo rm -rf /opt/go-custom
-          sudo mkdir -p /opt/go-custom
-          sudo tar -C /opt/go-custom -xzf go1.25.0-linux-armv7-custom.tar.gz
-          
-          # 【ここが重要】展開された「bin」フォルダがどこにあるか自動で探す
-          # 監督のGoが「go/bin」という階層なら、それを見つけ出します
-          REAL_GO_PATH=$(find /opt/go-custom -name go -type f -executable | sed 's/\/go$//' | head -n 1)
-          
-          if [ -n "$REAL_GO_PATH" ]; then
-            echo "Found Go at: $REAL_GO_PATH"
-            echo "$REAL_GO_PATH" >> $GITHUB_PATH
-          else
-            echo "Error: Could not find go binary in the archive!"
-            exit 1
-          fi
-          
-          # 標準のGoは消さずに、今のパスを「最優先」にするだけで十分です
+          # 現場（Debian Bookworm）のセットアップ
+          setup: |
+            apt-get update
+            apt-get install -y wget tar ca-certificates gcc libc6-dev
 
-          
+          # ここからが「ARMv7環境の中」での作業
+          run: |
+            # 1. 監督特製Goをダウンロードして展開（ここはARM環境なので動きます！）
+            wget -q https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
+            mkdir -p /opt/go-custom
+            tar -C /opt/go-custom -xzf go1.25.0-linux-armv7-custom.tar.gz
+            export PATH=/opt/go-custom/go/bin:$PATH
 
-          
-      # 2. 監督のGoで材料をパッキング
-      - name: Prepare Materials (Vendor)
-        working-directory: ./opencloud
-        run: |
-          go version
-          go mod vendor
-          # 備蓄セットをリポジトリルートに作成
-          tar -czf ../opencloud-ls220d-source-kit.tar.gz .
+            # 2. 動作確認
+            go version
 
-      # 3. 同じGoでバイナリを焼き、備蓄セットと共にReleaseへ
-      - name: Build & Release
-        working-directory: ./opencloud
-        run: |
-          mkdir -p bin
-          go build -mod=vendor -o bin/opencloud ./cmd/opencloud
+            # 3. 材料パッキング（vendor）
+            cd opencloud
+            go mod vendor
+            tar -czf ../opencloud-ls220d-source-kit.tar.gz .
 
-      # 4. 成果物をReleaseにアップロード（これがないと備蓄されません！）
-      - name: Upload to Release
+            # 4. ビルド本番
+            mkdir -p bin
+            go build -mod=vendor -o bin/opencloud ./cmd/opencloud
+            cd ..
+
+      # 成果物をReleaseに届ける（ここは外側（Ubuntu）に戻って行われます）
+      - name: Release Assets
         uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
             opencloud-ls220d-source-kit.tar.gz
