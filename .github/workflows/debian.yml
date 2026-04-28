@@ -75,15 +75,21 @@ jobs:
             mkdir -p $GOCACHE
 
             echo "--- Phase 4: Conditional Generate ---"
-            # キャッシュがあれば重い作業をスキップします
+            # プロキシ設定を再定義し、確実に認識させる
+            export GOPROXY="https://proxy.golang.org,direct"
+            export GOSUMDB=off
+
             if [ "${{ steps.cache-assets.outputs.cache-hit }}" != "true" ]; then
               echo "Cache Miss: Generating..."
+              # bingoのインストール。ここでプロキシを明示的に指定します
               go install github.com/bwplotka/bingo@latest
+              
+              # その後、make generateを実行
               make -j1 -i generate-prod || true
             else
               echo "Cache Hit: Skipping generate step!"
             fi
-
+            
             echo "--- Phase 5: Final Build (VCS Checkmate) ---"
             # 監督が見つけた正解「opencloud」ディレクトリでのビルド
             # 1. Gitの所有権警告を完全封鎖
