@@ -1,63 +1,38 @@
-name: DIRECTORS-SPECIAL-BUILD
+name: STEP1-CREATE-STOCKPILE
 
 on:
   push:
-    branches: [ main ]
-    tags: [ 'v*' ]
+    tags: [ 'v*' ] # タグ（v1.0.0-prepなど）を打つと起動
 
 jobs:
-  arm-build-task:
+  bundle-assets:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Source
         uses: actions/checkout@v4
 
-      - name: Build and Vendor on ARMv7
-        uses: uraimo/run-on-arch-action@v2
+      # 1. 監督特製Go（ARM用）を一時的に確保
+      - name: Download Custom ARM Go
+        run: |
+          wget -q https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
+
+      # 2. 標準Go 1.25を使って「vendor」を生成（x86上で動かしてOK）
+      - name: Setup Standard Go for Vendoring
+        uses: actions/setup-go@v5
         with:
-          arch: armv7
-          distro: bookworm
-          githubToken: ${{ github.token }}
-          
-          # 現場（Debian Bookworm）のセットアップ
-          # 1. 既存のロックファイルを強制排除
-          # 2. aptのキャッシュエラーを黙らせる
-          setup: |
-            rm -f /var/lib/apt/lists/lock
-            rm -f /var/cache/apt/archives/lock
-            rm -f /var/lib/dpkg/lock*
-            apt-get -o Dir::Cache::pkgcache="" -o Dir::Cache::srcpkgcache="" update
-            apt-get install -y --no-install-recommends wget tar ca-certificates gcc libc6-dev
+          go-version: '1.25'
 
-          # ARMv7環境内での作業
-          run: |
-            # 1. 監督特製Goをダウンロードして展開
-            wget -q https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
-            mkdir -p /opt/go-custom
-            tar -C /opt/go-custom -xzf go1.25.0-linux-armv7-custom.tar.gz
-            export PATH=/opt/go-custom/go/bin:$PATH
+      - name: Create Vendor
+        working-directory: ./opencloud
+        run: |
+          go mod vendor
+          # ソース、vendor、そして監督のARM用Goを一つのキットにまとめる
+          tar -czf ../opencloud-full-kit-armv7.tar.gz . ../go1.25.0-linux-armv7-custom.tar.gz
 
-            # 2. 動作確認
-            go version
-
-            # 3. 材料パッキング（vendor）
-            # ディレクトリ構成に合わせて移動
-            cd opencloud
-            go mod vendor
-            tar -czf ../opencloud-ls220d-source-kit.tar.gz .
-
-            # 4. ビルド本番
-            mkdir -p bin
-            go build -mod=vendor -o bin/opencloud ./cmd/opencloud
-            cd ..
-
-      # 成果物をReleaseに届ける
-      - name: Release Assets
+      # 3. この「フルセット」をReleaseに保管
+      - name: Upload to Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: |
-            opencloud-ls220d-source-kit.tar.gz
-            opencloud/bin/opencloud
+          files: opencloud-full-kit-armv7.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
