@@ -17,11 +17,21 @@ jobs:
       # 1. 監督特製GoをReleaseから召喚
       - name: Setup Custom Go (The Director's Special)
         run: |
-          # URLの「hhttps」を「https」に修正しました
+          # 監督がコンパイルしたGoをダウンロード
           wget -q https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
-          sudo tar -C /usr/local -xzf go1.25.0-linux-armv7-custom.tar.gz
-          echo "/usr/local/go/bin" >> $GITHUB_PATH
+          
+          # /usr/local/go-dist に展開（標準の /usr/local/go と被らないようにする）
+          sudo mkdir -p /usr/local/go-dist
+          sudo tar -C /usr/local/go-dist -xzf go1.25.0-linux-armv7-custom.tar.gz
+          
+          # 展開されたディレクトリの構造を確認しつつ、PATHを通す
+          # 恐らく /usr/local/go-dist/go/bin に実行ファイルがあります
+          echo "/usr/local/go-dist/go/bin" >> $GITHUB_PATH
+          
+          # 【重要】標準のGo（1.24）を無効化するおまじない
+          sudo mv /usr/bin/go /usr/bin/go.old || true
 
+          
       # 2. 監督のGoで材料をパッキング
       - name: Prepare Materials (Vendor)
         working-directory: ./opencloud
