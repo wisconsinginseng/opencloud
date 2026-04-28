@@ -2,7 +2,7 @@
 - name: Setup Custom Go (The Director's Special)
   run: |
   # 監督がコンパイルして用意したGoをダウンロード
-    wget -q https://github.com/ユーザー名/リポジトリ/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
+    wget -q hhttps://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
     # /usr/local に展開（sudoが必要な場合があります）
     sudo tar -C /usr/local -xzf go1.25.0-linux-armv7-custom.tar.gz
     # 次のステップ以降でもこのGoが使われるようにPATHを登録
