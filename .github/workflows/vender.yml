@@ -24,4 +24,4 @@
   # ネットを遮断して、vendor内の材料だけでコンパイル
   # ※出力先 bin/ は mkdir -p bin で作っておくか直下に置くと安全です
   mkdir -p bin
-          go build -mod=vendor -o bin/opencloud ./cmd/opencloud
+  go build -mod=vendor -o bin/opencloud ./cmd/opencloud
