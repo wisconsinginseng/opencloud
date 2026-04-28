@@ -5,6 +5,7 @@ on:
     tags:
       - 'v*' # v1.0.0などのタグをpushした時に動きます
 
+
 jobs:
   build-and-vendor:
     runs-on: ubuntu-latest
