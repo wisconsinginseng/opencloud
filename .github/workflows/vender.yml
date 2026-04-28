@@ -14,6 +14,22 @@ jobs:
 
       - name: Build and Vendor on ARMv7
         uses: uraimo/run-on-arch-action@v2
+        name: DIRECTORS-SPECIAL-BUILD
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+
+jobs:
+  arm-build-task:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Build and Vendor on ARMv7
+        uses: uraimo/run-on-arch-action@v2
         with:
           arch: armv7
           distro: bookworm
@@ -32,6 +48,29 @@ jobs:
             tar -C /opt/go-custom -xzf go1.25.0-linux-armv7-custom.tar.gz
             export PATH=/opt/go-custom/go/bin:$PATH
 
+            # 2. 動作確認
+            go version
+
+            # 3. 材料パッキング（vendor）
+            cd opencloud
+            go mod vendor
+            tar -czf ../opencloud-ls220d-source-kit.tar.gz .
+
+            # 4. ビルド本番
+            mkdir -p bin
+            go build -mod=vendor -o bin/opencloud ./cmd/opencloud
+            cd ..
+
+      # 成果物をReleaseに届ける（ここは外側（Ubuntu）に戻って行われます）
+      - name: Release Assets
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            opencloud-ls220d-source-kit.tar.gz
+            opencloud/bin/opencloud
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             # 2. 動作確認
             go version
 
