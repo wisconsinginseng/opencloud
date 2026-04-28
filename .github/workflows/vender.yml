@@ -2,9 +2,10 @@ name: DIRECTORS-SPECIAL-BUILD
 
 on:
   push:
+    branches:
+      - main  # mainブランチに書き込みがあったら即実行！
     tags:
-      - 'v*' # v1.0.0などのタグをpushした時に動きます
-
+      - 'v*'
 
 jobs:
   build-and-vendor:
