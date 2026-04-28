@@ -14,22 +14,31 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v4
 
-      # 1. 監督特製GoをReleaseから召喚
+      # 1. 監督特製GoをReleaseから召喚（自動追跡モード）
       - name: Setup Custom Go (The Director's Special)
         run: |
-          # 監督がコンパイルしたGoをダウンロード
           wget -q https://github.com/wisconsinginseng/opencloud/releases/download/v1.25-go/go1.25.0-linux-armv7-custom.tar.gz
           
-          # /usr/local/go-dist に展開（標準の /usr/local/go と被らないようにする）
-          sudo mkdir -p /usr/local/go-dist
-          sudo tar -C /usr/local/go-dist -xzf go1.25.0-linux-armv7-custom.tar.gz
+          # 混乱を防ぐため、一度まっさらにして展開
+          sudo rm -rf /opt/go-custom
+          sudo mkdir -p /opt/go-custom
+          sudo tar -C /opt/go-custom -xzf go1.25.0-linux-armv7-custom.tar.gz
           
-          # 展開されたディレクトリの構造を確認しつつ、PATHを通す
-          # 恐らく /usr/local/go-dist/go/bin に実行ファイルがあります
-          echo "/usr/local/go-dist/go/bin" >> $GITHUB_PATH
+          # 【ここが重要】展開された「bin」フォルダがどこにあるか自動で探す
+          # 監督のGoが「go/bin」という階層なら、それを見つけ出します
+          REAL_GO_PATH=$(find /opt/go-custom -name go -type f -executable | sed 's/\/go$//' | head -n 1)
           
-          # 【重要】標準のGo（1.24）を無効化するおまじない
-          sudo mv /usr/bin/go /usr/bin/go.old || true
+          if [ -n "$REAL_GO_PATH" ]; then
+            echo "Found Go at: $REAL_GO_PATH"
+            echo "$REAL_GO_PATH" >> $GITHUB_PATH
+          else
+            echo "Error: Could not find go binary in the archive!"
+            exit 1
+          fi
+          
+          # 標準のGoは消さずに、今のパスを「最優先」にするだけで十分です
+
+          
 
           
       # 2. 監督のGoで材料をパッキング
