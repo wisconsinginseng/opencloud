@@ -41,8 +41,7 @@ LDFLAGS += -X google.golang.org/protobuf/reflect/protoregistry.conflictPolicy=wa
 	-X "$(OC_REPO)/pkg/version.String=$(STRING)" \
 	-X "$(OC_REPO)/pkg/version.Tag=$(VERSION)" \
 	-X "$(OC_REPO)/pkg/version.Date=$(DATE)" \
-	$(EXTRA_LDFLAGS)  # ← ここを「Tab」一個に置き換えてください
-　　
+	$(EXTRA_LDFLAGS)
 
 DEBUG_LDFLAGS += -X google.golang.org/protobuf/reflect/protoregistry.conflictPolicy=warn \
 	-X "$(OC_REPO)/pkg/version.Edition=$(EDITION)" \
