@@ -348,3 +348,15 @@ generate-qa-activity-report: node_modules
 		exit 1; \
 	fi
 	go run tests/qa-activity-report/generate-qa-activity-report.go --month ${MONTH} --year ${YEAR}
+
+# ARMv7 (armhf) 向けの動的リンクビルド用ターゲット
+.PHONY: build-armv7
+build-armv7:
+	@echo "- Building for ARMv7/armhf (Dynamic Linking Mode)"
+	$(MAKE) build \
+		GOOS=linux \
+		GOARCH=arm \
+		GOARM=7 \
+		CGO_ENABLED=1 \
+		CC=arm-linux-gnueabihf-gcc \
+		EXTRA_LDFLAGS='-extldflags "-L$(GUEST_LIBS_PATH) -lcrypt -lcrypto"'
