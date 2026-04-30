@@ -96,6 +96,20 @@ build-all: build build-debug
 .PHONY: build
 build: $(BIN)/$(EXECUTABLE)
 
+# --- .make/go.mk の末尾付近に移動 ---
+
+# 汎用的な ARMv7 (armhf) 向け動的リンクビルド
+.PHONY: build-armv7
+build-armv7:
+	@echo "- Building for ARMv7/armhf (Dynamic Linking Mode)"
+	$(MAKE) build \
+		GOOS=linux \
+		GOARCH=arm \
+		GOARM=7 \
+		CGO_ENABLED=1 \
+		CC=arm-linux-gnueabihf-gcc \
+		EXTRA_LDFLAGS='-extldflags "-L$(GUEST_LIBS_PATH) -lcrypt -lcrypto"'
+
 .PHONY: build-debug
 build-debug: $(BIN)/$(EXECUTABLE)-debug
 
