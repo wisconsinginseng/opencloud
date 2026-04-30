@@ -47,21 +47,22 @@ jobs:
       # 5. ビルド実行 (Makeを使用)
       - name: Build with Make
         run: |
-          # --- 現場の環境整備 ---
+          # 1. 道具箱の場所を確定
           export GOBIN="${{ github.workspace }}/.bingo"
           export PATH="$GOBIN:$PATH"
 
-          # --- 手順1: 道具箱の整理（看板の掛け替え） ---
-          # 隠れた Makefile である .make/protobuf.mk 内の 'protoc-deps' を実行。
-          # これで buf が探す 'protoc-gen-go' 等の名前が整います。
-          make protoc-deps
+          # 2. 【監督の横展開：thumbnails と settings 両方の準備】
+          # いずれかのサービスで protoc-deps を叩けば共通の .bingo に道具は揃いますが、
+          # 念のため、あるいは今後の拡張性を考え、両方の現場を確実に「通す」のがプロの仕事です。
+          # 実際には一回叩けば十分ですが、明示的に書くことで「意図」が伝わります。
+          make -C services/thumbnails protoc-deps
+          make -C services/settings protoc-deps
 
-          # --- 手順2: 準備工程（自動生成） ---
-          # 道具が揃った状態で、Protobuf や Mock のコードを焼き上げます。
+          # 3. これで、ルート Makefile の 205 行目のループが
+          # どちらのサービスに突入しても、buf は「正しい名前のプラグイン」を発見できます！
           make generate
 
-          # --- 手順3: 本番（LS220D 向け魂のビルド） ---
-          # 監督が救出した libcrypt を注入し、ARMv7 向けに最適化して出力！
+          # 4. 本番ビルド（LS220D スペシャル）
           make opencloud -C build \
             CGO_ENABLED=1 \
             GOOS=linux \
