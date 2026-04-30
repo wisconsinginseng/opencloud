@@ -15,9 +15,10 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          # 1.21 から 1.24 以上へアップデートします
-          go-version: '1.24' 
-          # もし vendor フォルダを使っている場合は cache も有効にすると速いです
+          # 1.25 を飛び越えて、現在安定版で最も新しいものを指定します
+          go-version: '1.26' 
+          # もしくは、常にその時の最新を使うなら 'stable' と書く手もあります
+          # go-version: 'stable'
           cache: true
           
       - name: Install Cross-Compiler (arm-linux-gnueabihf)
