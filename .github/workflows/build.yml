@@ -3,7 +3,7 @@ name: Build OpenCloud for LS220D
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: # 手動実行ボタンを有効化
+  workflow_dispatch:
 
 jobs:
   build:
@@ -12,48 +12,56 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 1. Go環境のセットアップ (最新の1.26を指定)
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          # 1.25 を飛び越えて、現在安定版で最も新しいものを指定します
-          go-version: '1.26' 
-          # もしくは、常にその時の最新を使うなら 'stable' と書く手もあります
-          # go-version: 'stable'
+          go-version: '1.26'
           cache: true
-          
-      - name: Install Cross-Compiler (arm-linux-gnueabihf)
+
+      # 2. Node.js & pnpm 環境のセットアップ (フロントエンド用)
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # 安定版の20を指定
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9 # プロジェクトの要求に合わせて調整してください
+          run_install: true
+
+      # 3. クロスコンパイラのインストール
+      - name: Install Cross-Compiler
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+          sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf make
 
+      # 4. LS220D純正ライブラリの調達
       - name: Download LS220D Native Libraries
         run: |
-          # 監督が作成されたリリースタグのURLから資材を確保
           curl -L https://github.com/wisconsinginseng/opencloud/archive/refs/tags/libcrypt.tar.gz -o libs.tar.gz
           mkdir -p guest_libs
-          # --strip-components=1 で、フォルダの中身だけを guest_libs に展開
           tar -xzf libs.tar.gz -C guest_libs --strip-components=1
-          
-          # 現場確認（ログに中身を表示して、安心感を得るためのステップ）
-          echo "--- Downloaded Libraries ---"
-          ls -l guest_libs
 
-      - name: Build for LS220D (ARMv7)
+      # 5. ビルド実行 (Makeを使用)
+      - name: Build with Make
         env:
           CGO_ENABLED: 1
           GOOS: linux
           GOARCH: arm
           GOARM: 7
           CC: arm-linux-gnueabihf-gcc
-          # 【監督、ここがポイント！】
-          # -L で確保したライブラリパスを通し、-lcrypt を指名します
+          # Make経由でもこのLDFLAGSが効くように設定
           CGO_LDFLAGS: "-L${{ github.workspace }}/guest_libs -lcrypt -lcrypto"
         run: |
-          # ビルド実行。バイナリ名は分かりやすく ls220d を付与
-          go build -v -o opencloud_ls220d
+          # 監督指定のコマンド手順
+          make generate
+          make opencloud -C build
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: opencloud-ls220d-binary
-          path: opencloud_ls220d
+          # 生成されたバイナリのパスに合わせて調整してください
+          path: build/bin/opencloud
