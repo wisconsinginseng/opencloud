@@ -90,9 +90,12 @@ jobs:
             GUEST_LIBS_PATH=${{ github.workspace }}/guest_libs \
             V=1
     
-      - name: Upload Artifact
+      - name: Upload ARMv7 Binary
         uses: actions/upload-artifact@v4
         with:
-          name: opencloud-ls220d-binary
-          # 生成されたバイナリのパスに合わせて調整してください
-          path: build/bin/opencloud
+          name: opencloud-armv7
+          # 監督、パスをここに合わせてください！
+          path: opencloud/bin/opencloud
+          # もし上記で見つからない場合は、ワイルドカードで確実に仕留めます
+          # path: "**/bin/opencloud"
+          if-no-files-found: error # 見つからなかったら即座にエラーにして知らせる設定
