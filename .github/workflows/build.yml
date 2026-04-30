@@ -66,10 +66,6 @@ jobs:
             GOARM=7 \
             CC=arm-linux-gnueabihf-gcc \
             CGO_LDFLAGS="-L${{ github.workspace }}/guest_libs -lcrypt -lcrypto"
-            
-          # 監督指定のコマンド手順
-          make generate
-          make opencloud -C build
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
