@@ -61,8 +61,11 @@ jobs:
           export GOBIN="${{ github.workspace }}/.bingo"
           export PATH="$GOBIN:$PATH"
           
-          # 現場（Makefile）に全て任せる！
-          make -C opencloud build-armv7 GUEST_LIBS_PATH=${{ github.workspace }}/guest_libs
+          # 監督特製：詳細ログ（-v）と実行コマンド表示（V=1）の合わせ技です！
+          make -C opencloud build-armv7 \
+            GUEST_LIBS_PATH=${{ github.workspace }}/guest_libs \
+            GOBUILD="go build -v" \
+            V=1
       
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
