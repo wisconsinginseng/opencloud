@@ -56,17 +56,30 @@ jobs:
           # 2. 生成工程（監督の確認通り、ここもパス！）
           make generate
 
+      - name: Debug Library Path
+        run: |
+          echo "--- Checking guest_libs contents ---"
+          find ${{ github.workspace }}/guest_libs -maxdepth 2
+          echo "------------------------------------"
+      
       - name: Build for ARMv7
         run: |
           export GOBIN="${{ github.workspace }}/.bingo"
           export PATH="$GOBIN:$PATH"
           
-          # 監督特製：詳細ログ（-v）と実行コマンド表示（V=1）の合わせ技です！
+          # 1. 全ての go.mod の Go バージョンを 1.23 に強制アップデート
+          # これで「cannot range over int」エラーを根絶します！
+          find . -name "go.mod" -exec sed -i 's/^go 1.21/go 1.23/g' {} +
+
+          # 2. 依存関係の再整理
+          make go-mod-tidy
+
+          # 3. 本番ビルド
           make -C opencloud build-armv7 \
             GUEST_LIBS_PATH=${{ github.workspace }}/guest_libs \
             GOBUILD="go build -v" \
             V=1
-      
+    
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
