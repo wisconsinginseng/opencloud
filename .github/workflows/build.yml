@@ -47,14 +47,21 @@ jobs:
       # 5. ビルド実行 (Makeを使用)
       - name: Build with Make
         run: |
-          # 1. まずは準備工程 (generate)
-          # ここでは標準の環境（x86）で動くツール類を生成させるため、
-          # あえて特別な LDFLAGS は渡さずに実行します。
+          # --- 現場の環境整備 ---
+          export GOBIN="${{ github.workspace }}/.bingo"
+          export PATH="$GOBIN:$PATH"
+
+          # --- 手順1: 道具箱の整理（看板の掛け替え） ---
+          # 隠れた Makefile である .make/protobuf.mk 内の 'protoc-deps' を実行。
+          # これで buf が探す 'protoc-gen-go' 等の名前が整います。
+          make protoc-deps
+
+          # --- 手順2: 準備工程（自動生成） ---
+          # 道具が揃った状態で、Protobuf や Mock のコードを焼き上げます。
           make generate
 
-          # 2. 本番ビルド (opencloud)
-          # ここで満を持して、監督が救出した純正ライブラリを投入します！
-          # CGO_LDFLAGS を引数として直接渡すことで、このステップに「だけ」効かせます。
+          # --- 手順3: 本番（LS220D 向け魂のビルド） ---
+          # 監督が救出した libcrypt を注入し、ARMv7 向けに最適化して出力！
           make opencloud -C build \
             CGO_ENABLED=1 \
             GOOS=linux \
