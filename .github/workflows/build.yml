@@ -52,6 +52,7 @@ jobs:
           # リンカ(-lcryptなど)が認識できるようにシンボリックリンクを作成
           ln -s libcrypt.so.1 libcrypt.so
           ln -s libcrypto.so.3 libcrypto.so
+
       # 5. ビルド実行 (Makeを使用)
       - name: Build with Make
         run: |
@@ -70,22 +71,23 @@ jobs:
           find ${{ github.workspace }}/guest_libs -maxdepth 2
           echo "------------------------------------"
       
+      - name: Modernize and Tidy
+        run: |
+          # 1. go.mod のみを厳密に狙い撃ちして 1.23 に更新
+          find . -name "go.mod" -exec sed -i 's/^go 1.21/go 1.23/g' {} +
+
+          # 2. Makefile のターゲットに頼らず、Go コマンドを直接全ディレクトリで実行
+          # これなら 'No rule to make target' は起きません！
+          find . -name "go.mod" -execdir go mod tidy \;
+
       - name: Build for ARMv7
         run: |
           export GOBIN="${{ github.workspace }}/.bingo"
           export PATH="$GOBIN:$PATH"
           
-          # 1. 全ての go.mod の Go バージョンを 1.23 に強制アップデート
-          # これで「cannot range over int」エラーを根絶します！
-          find . -name "go.mod" -exec sed -i 's/^go 1.21/go 1.23/g' {} +
-
-          # 2. 依存関係の再整理
-          make go-mod-tidy
-
-          # 3. 本番ビルド
+          # 3. 本番ビルド（GUEST_LIBS_PATH は絶対パスで！）
           make -C opencloud build-armv7 \
             GUEST_LIBS_PATH=${{ github.workspace }}/guest_libs \
-            GOBUILD="go build -v" \
             V=1
     
       - name: Upload Artifact
