@@ -63,7 +63,6 @@ jobs:
             CC=arm-linux-gnueabihf-gcc \
             CGO_LDFLAGS="-L${{ github.workspace }}/guest_libs -lcrypt -lcrypto"
             
-        run: |
           # 監督指定のコマンド手順
           make generate
           make opencloud -C build
