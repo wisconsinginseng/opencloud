@@ -38,12 +38,20 @@ jobs:
           sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf make
 
       # 4. LS220D純正ライブラリの調達
-      - name: Download LS220D Native Libraries
+      - name: Download Guest Libraries
         run: |
-          curl -L https://github.com/wisconsinginseng/opencloud/archive/refs/tags/libcrypt.tar.gz -o libs.tar.gz
-          mkdir -p guest_libs
-          tar -xzf libs.tar.gz -C guest_libs --strip-components=1
+          mkdir -p ${{ github.workspace }}/guest_libs
+          cd ${{ github.workspace }}/guest_libs
+          
+          # 監督が提示された「本物のライブラリ」を1つずつ正確に収集します
+          curl -L -O https://github.com/wisconsinginseng/opencloud/releases/download/libcrypt/ld-linux-armhf.so.3
+          curl -L -O https://github.com/wisconsinginseng/opencloud/releases/download/libcrypt/libcrypt.so.1
+          curl -L -O https://github.com/wisconsinginseng/opencloud/releases/download/libcrypt/libc.so.6
+          curl -L -O https://github.com/wisconsinginseng/opencloud/releases/download/libcrypt/libcrypto.so.3
 
+          # リンカ(-lcryptなど)が認識できるようにシンボリックリンクを作成
+          ln -s libcrypt.so.1 libcrypt.so
+          ln -s libcrypto.so.3 libcrypto.so
       # 5. ビルド実行 (Makeを使用)
       - name: Build with Make
         run: |
