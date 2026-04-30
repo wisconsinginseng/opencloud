@@ -47,23 +47,19 @@ jobs:
       # 5. ビルド実行 (Makeを使用)
       - name: Build with Make
         run: |
-          # 1. 道具箱の場所を確定
+          # 1. 環境整備と道具出し（ここは完璧です）
           export GOBIN="${{ github.workspace }}/.bingo"
           export PATH="$GOBIN:$PATH"
-
-          # 2. 【監督の横展開：thumbnails と settings 両方の準備】
-          # いずれかのサービスで protoc-deps を叩けば共通の .bingo に道具は揃いますが、
-          # 念のため、あるいは今後の拡張性を考え、両方の現場を確実に「通す」のがプロの仕事です。
-          # 実際には一回叩けば十分ですが、明示的に書くことで「意図」が伝わります。
           make -C services/thumbnails protoc-deps
           make -C services/settings protoc-deps
 
-          # 3. これで、ルート Makefile の 205 行目のループが
-          # どちらのサービスに突入しても、buf は「正しい名前のプラグイン」を発見できます！
+          # 2. 生成工程（監督の確認通り、ここもパス！）
           make generate
 
-          # 4. 本番ビルド（LS220D スペシャル）
-          make opencloud -C build \
+          # 3. 【これが正解のビルド命令】
+          # README の通り 'opencloud' ディレクトリに入り、
+          # かつ、監督の ARMv7 用カスタム設定を流し込みます。
+          make -C opencloud build \
             CGO_ENABLED=1 \
             GOOS=linux \
             GOARCH=arm \
